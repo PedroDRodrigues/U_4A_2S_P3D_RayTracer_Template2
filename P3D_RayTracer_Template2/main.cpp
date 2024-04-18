@@ -24,6 +24,8 @@
 #include "maths.h"
 #include "macros.h"
 
+using namespace std;
+
 //Enable OpenGL drawing.  
 bool drawModeEnabled = true;
 
@@ -453,13 +455,9 @@ void setupGLUT(int argc, char* argv[])
 
 /////////////////////////////////////////////////////YOUR CODE HERE///////////////////////////////////////////////////////////////////////////////////////
 
-Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medium 1 where the ray is travelling
+/*Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medium 1 where the ray is travelling
 {
 	//INSERT HERE YOUR CODE
-	if (depth >= 5) { // VERIFY
-		return Color(0.0f, 0.0f, 0.0f);
-	}
-
 	int numberObjects = scene->getNumObjects();
 	float closest_t = FLT_MAX; // Find the closest intersection point
 	Object* closest_object = nullptr;
@@ -522,6 +520,10 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 		}
 	}
 
+	if (depth >= 10) { // VERIFY
+		return Color(0.0f, 0.0f, 0.0f);
+	}
+
 	// Recursive calls for reflection and refraction
 	if (closest_object->GetMaterial()->GetReflection() > 0) {
 		Vector reflection_direction = ray.direction - (normal * Vector::dot(ray.direction, normal) * 2);
@@ -546,6 +548,123 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 	}
 
 	return color;
+}*/
+
+Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medium 1 where the ray is travelling
+{
+	//INSERT HERE YOUR CODE
+	int numberObjects = scene->getNumObjects();
+	float closest_t = FLT_MAX; // Find the closest intersection point
+	Object* closest_object = nullptr;
+
+	for (int i = 0; i < numberObjects; i++) {
+		Object* object = scene->getObject(i);
+		float t;
+		if (object->intercepts(ray, t) && t < closest_t) {
+			closest_t = t;
+			closest_object = object;
+		}
+	}
+
+	if (!closest_object) { //if there is no interception return background
+		return scene->GetBackgroundColor();
+	} else {
+		// Compute hit point and normal
+		Vector hit_point = ray.origin + ray.direction * closest_t;
+		Vector normal = closest_object->getNormal(hit_point);
+
+		Color color(0.0f, 0.0f, 0.0f);
+
+		// Compute lighting
+		for (int i = 0; i < scene->getNumLights(); ++i) {
+			Light* light = scene->getLight(i);
+			Vector L = (light->position - hit_point).normalize();
+
+			// Check if point is in shadow
+			Ray shadow_ray(hit_point, L);
+			bool in_shadow = false;
+			float NdotL = Vector::dot(normal, L);
+
+			if (NdotL > 0) {
+				/*for (int j = 0; j < scene->getNumObjects(); ++j) {
+					Object* object = scene->getObject(j);
+					float t;
+					if (object->intercepts(shadow_ray, t) && t < (light->position - hit_point).length()) {
+						in_shadow = true;
+						break;
+					}
+				}
+
+				// Compute diffuse and specular color
+				if (!in_shadow) {
+					//if (object->intercepts(shadow_ray, t) && t < (light->position - hit_point).length()) { //if in shadow
+						// Compute diffuse color
+					float diffuse_color = closest_object->GetMaterial()->GetDiffuse() * NdotL;
+
+					// Compute specular color
+					Vector H = (L - ray.direction).normalize();
+					float NdotH = Vector::dot(normal, H);
+
+					if (NdotH > 0) {
+						float specular_power = pow(NdotH, closest_object->GetMaterial()->GetShine());
+						float specular_color = closest_object->GetMaterial()->GetSpecular() * specular_power;
+
+						// Add diffuse and specular color to final color
+						//color += ((diffuse_color + specular_color) * light->color); // -> SECOND SOLUTION IS CORRECT
+						color += (light->color * (diffuse_color + specular_color));
+					}
+				}*/
+				
+				float t;
+
+				if (closest_object->intercepts(shadow_ray, t) && t < (light->position - hit_point).length()) {
+					in_shadow = true;
+					break;
+				}
+
+				if (!in_shadow) {
+
+					float diffuse_color = closest_object->GetMaterial()->GetDiffuse() * NdotL;
+					Vector H = (L - ray.direction).normalize();
+					float NdotH = Vector::dot(normal, H);
+
+					if (NdotH > 0) {
+						float specular_power = pow(NdotH, closest_object->GetMaterial()->GetShine());
+						float specular_color = closest_object->GetMaterial()->GetSpecular() * specular_power;
+						color += (light->color * (diffuse_color + specular_color));
+					}
+				}
+			}
+		}
+
+		if (depth >= 10) { // VERIFY
+			return color; //changed position
+		}
+
+		// Recursive calls for reflection and refraction
+		if (closest_object->GetMaterial()->GetReflection() > 0) {
+			Vector reflection_direction = ray.direction - (normal * Vector::dot(ray.direction, normal) * 2);
+			Ray reflection_ray(hit_point + (reflection_direction * EPSILON), reflection_direction); //de onde vem o epsilon
+			Color reflection_color = rayTracing(reflection_ray, depth + 1, ior_1); //here should be ior from closest object not original?
+			color += reflection_color * closest_object->GetMaterial()->GetReflection();
+		}
+
+		if (closest_object->GetMaterial()->GetTransmittance() > 0) {
+			// Calculate refraction direction and ratio of indices of refraction
+			float ior_ratio = ior_1 / closest_object->GetMaterial()->GetRefrIndex();
+			float cos_theta_i = -Vector::dot(ray.direction, normal);
+			float sin_theta_t_sqr = ior_ratio * ior_ratio * (1.0f - cos_theta_i * cos_theta_i);
+
+			if (sin_theta_t_sqr < 1) {
+				float cos_theta_t = sqrt(1 - sin_theta_t_sqr);
+				Vector refraction_direction = ray.direction * ior_ratio + normal * (ior_ratio * cos_theta_i - cos_theta_t);
+				Ray refraction_ray(hit_point - normal * EPSILON, refraction_direction); //de onde vem o epsilon
+				Color refraction_color = rayTracing(refraction_ray, depth + 1, closest_object->GetMaterial()->GetRefrIndex());
+				color += refraction_color * closest_object->GetMaterial()->GetTransmittance();
+			}
+		}
+		return color;
+	}
 }
 
 // Render function by primary ray casting from the eye towards the scene's objects
@@ -654,8 +773,8 @@ void init_scene(void)
 	if (P3F_scene) {  //Loading a P3F scene
 
 		while (true) {
-			cout << "Input the Scene Name: ";
-			cin >> input_user;
+			std::cout << "Input the Scene Name: ";
+			std::cin >> input_user;
 			strcpy_s(scene_name, sizeof(scene_name), scenes_dir);
 			strcat_s(scene_name, sizeof(scene_name), input_user);
 
@@ -742,7 +861,7 @@ int main(int argc, char* argv[])
 			auto passedTime = std::chrono::duration<double, std::milli>(timeEnd - timeStart).count();
 			printf("\nDone: %.2f (sec)\n", passedTime / 1000);
 			if (!P3F_scene) break;
-			cout << "\nPress 'y' to render another image or another key to terminate!\n";
+			std::cout << "\nPress 'y' to render another image or another key to terminate!\n";
 			delete(scene);
 			free(img_Data);
 			ch = _getch();
