@@ -99,11 +99,17 @@ public:
 		return Ray(eye_offset, ray_dir);*/
 
 		// Convert pixel sample to viewport coordinates
-		float u_vp = (2 * (pixel_sample.x + 0.5) / res_x - 1) * w / 2;
-		float v_vp = (1 - 2 * (pixel_sample.y + 0.5) / res_y) * h / 2;
+		float u_vp = ((pixel_sample.x + 0.5) / res_x) * w;
+		float v_vp = ((pixel_sample.y + 0.5) / res_y) * h;
+
+		Vector EminusA = eye - at;
+		Vector ze = EminusA * (1 / sqrt(pow(EminusA.x, 2) + pow(EminusA.y, 2) + pow(EminusA.z, 2)));
+		Vector UpeZe = up % ze;
+		Vector xe = UpeZe * (1 / sqrt(pow(UpeZe.x, 2) + pow(UpeZe.y, 2) + pow(UpeZe.z, 2)));
+		Vector ye = ze % xe;
 
 		// Calculate direction of the ray
-		Vector ray_dir = (u * u_vp) + (v * v_vp) - (n * plane_dist);
+		Vector ray_dir = (xe * u_vp) + (ye * v_vp);
 		ray_dir.normalize();
 
 		// Calculate origin of the ray with lens sample offset

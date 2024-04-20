@@ -43,25 +43,25 @@ bool Triangle::intercepts(Ray& r, float& t ) {
 	Vector e1 = points[1] - points[0];
 	Vector e2 = points[2] - points[0];
 	Vector h = Vector::cross(r.direction, e2);
-	float a = Vector::dot(e1, h);
+	float a = e1 * h;
 
 	if (a > -EPSILON && a < EPSILON)
 		return false;
 
 	float f = 1.0f / a;
 	Vector s = r.origin - points[0];
-	float u = f * (Vector::dot(s, h));
+	float u = f * (s * h);
 
 	if (u < 0.0f || u > 1.0f)
 		return false;
 
 	Vector q = Vector::cross(s, e1);
-	float v = f * (Vector::dot(r.direction, q));
+	float v = f * (r.direction * q);
 
 	if (v < 0.0f || u + v > 1.0f)
 		return false;
 
-	t = f * Vector::dot(e2, q);
+	t = f * (e2 * q);
 
 	return t > EPSILON;
 }
@@ -99,19 +99,22 @@ bool Plane::intercepts( Ray& r, float& t )
 	
 	//PUT HERE YOUR CODE
 	//float denominator = PN.dot(r.direction);
-	float denominator = Vector::dot(PN, r.direction);
+	float denominator = PN * r.direction;
 
-	if (denominator == 0) {
+	//if (denominator == 0) {
 		// Ray is parallel to the plane, no intersection
+	if (fabs(denominator) < EPSILON) {
 		return false;
 	}
 
 	//t = (D - PN.dot(r.origin)) / denominator;
-	t = (D - Vector::dot(PN, r.origin));
+	float taux = (PN * r.origin) - D / denominator;
 	// Check if the intersection point is in front of the ray origin
-	if (t < 0) {
+	if (taux < 0) {
 		return false;
 	}
+
+	t = taux;
 
 	return true;
 }
@@ -127,11 +130,11 @@ bool Sphere::intercepts(Ray& r, float& t )
 	//PUT HERE YOUR CODE
 	Vector oc = r.origin - center;
 	//float a = r.direction.dot(r.direction);
-	float a = Vector::dot(r.direction, r.direction);
+	float a = r.direction * r.direction;
 	//float b = 2.0f * oc.dot(r.direction);
-	float b = 2.0f * (Vector::dot(oc, r.direction));
+	float b = 2.0f * (oc * r.direction);
 	//float c = oc.dot(oc) - radius * radius;
-	float c = Vector::dot(oc, oc) - radius * radius;
+	float c = oc * oc - (radius * radius);
 	float discriminant = b * b - 4 * a * c;
 
 	if (discriminant < 0) {
@@ -629,8 +632,8 @@ void Scene::create_random_scene() {
 	this->SetSkyBoxFlg(false);  //init with no skybox
 
 	this->SetBackgroundColor(Color(0.5, 0.7, 1.0));
-	//this->LoadSkybox("skybox");
-	//this->SetSkyBoxFlg(true);
+	this->LoadSkybox("skybox");
+	this->SetSkyBoxFlg(true);
 	this->SetAccelStruct(BVH_ACC);
 	this->SetSamplesPerPixel(0);
 	

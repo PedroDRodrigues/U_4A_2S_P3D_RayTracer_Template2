@@ -60,9 +60,9 @@ Vector Vector::operator/( float f )
 
 Vector&	Vector::normalize	()
 {
-				   float l=1.0/this->length();
-				   x *= l; y *= l; z *= l;
-				   return *this;
+	float l=1.0/this->length();
+	x *= l; y *= l; z *= l;
+	return *this;
 }
 
 Vector&	Vector::operator-=(const Vector& v)
@@ -94,10 +94,10 @@ Vector Vector::operator%( const Vector& v)
 	return Vector( sX, sY, sZ );
 }
 
-float Vector::dot(const Vector& a, const Vector& b)
+/*float Vector::dot(const Vector& a, const Vector& b)
 {
 	return a.x * b.x + a.y * b.y + a.z * b.z;
-}
+}*/
 
 Vector Vector::cross(const Vector& a, const Vector& b)
 {

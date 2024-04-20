@@ -30,7 +30,7 @@ public:
 	Vector&	operator*=	(const float v);
 	Vector&	operator+=	(const float v);
 	
-	static float dot(const Vector& a, const Vector& b);  // Dot product
+	//static float dot(const Vector& a, const Vector& b);  // Dot product
 	static Vector cross(const Vector& a, const Vector& b);  // Cross product
 
 	float x;
