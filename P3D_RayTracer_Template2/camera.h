@@ -15,9 +15,10 @@ class Camera
 private:
 	Vector eye, at, up; 
 	float fovy, vnear, vfar, plane_dist, focal_ratio, aperture;
-	float w, h;
+	float w, h, df;
 	int res_x, res_y;
 	Vector u, v, n;
+	Vector ze,xe,ye;
 
 public:
 	Vector GetEye() { return eye; }
@@ -48,6 +49,11 @@ public:
 	    u = u / u.length();
 
 	    v = n % u;
+		ze = n.normalize();
+		xe = up % ze;
+		xe = xe.normalize();
+		ye = ze % xe;
+		df = sqrt(pow(n.x,2)+ pow(n.y, 2)+ pow(n.z, 2));
 
         //Dimensions of the vis window
 	    h = 2 * plane_dist * tan( (PI * angle / 180) / 2.0f );
@@ -72,51 +78,41 @@ public:
 
 	Ray PrimaryRay(const Vector& pixel_sample) //  Rays cast from the Eye to a pixel sample which is in Viewport coordinates
 	{
-		/*Vector ray_dir;
-
-		return Ray(eye, ray_dir);  */ //1 VERIFICAR
-
 		// Convert pixel sample to viewport coordinates
-		float u_vp = (2 * (pixel_sample.x + 0.5) / res_x - 1) * w / 2;
-		float v_vp = (1 - 2 * (pixel_sample.y + 0.5) / res_y) * h / 2;
+		float u_vp = (pixel_sample.x / res_x) - 0.5;
+		float v_vp = (pixel_sample.y / res_y) - 0.5;
 
 		// Calculate direction of the ray
-		Vector ray_dir = (u * u_vp) + (v * v_vp) - (n * plane_dist);
+		Vector ray_dir = (xe*u_vp*w) + (ye * v_vp*h)-ze*df;
 		ray_dir.normalize();
 
 		// Calculate origin of the ray
 		Vector ray_origin = eye;
-
+		
 		return Ray(ray_origin, ray_dir);
 	}
 
 	Ray PrimaryRay(const Vector& lens_sample, const Vector& pixel_sample) // DOF: Rays cast from  a thin lens sample to a pixel sample
 	{
-		
-		/*Vector ray_dir;
-		Vector eye_offset;
-
-		return Ray(eye_offset, ray_dir);*/
-
 		// Convert pixel sample to viewport coordinates
-		float u_vp = ((pixel_sample.x + 0.5) / res_x) * w;
-		float v_vp = ((pixel_sample.y + 0.5) / res_y) * h;
-
-		Vector EminusA = eye - at;
-		Vector ze = EminusA * (1 / sqrt(pow(EminusA.x, 2) + pow(EminusA.y, 2) + pow(EminusA.z, 2)));
-		Vector UpeZe = up % ze;
-		Vector xe = UpeZe * (1 / sqrt(pow(UpeZe.x, 2) + pow(UpeZe.y, 2) + pow(UpeZe.z, 2)));
-		Vector ye = ze % xe;
+		float u_vp = (pixel_sample.x / res_x) - 0.5;
+		float v_vp = (pixel_sample.y / res_y) - 0.5;
 
 		// Calculate direction of the ray
-		Vector ray_dir = (xe * u_vp) + (ye * v_vp);
+		Vector ray_dir = (xe * u_vp * w) + (ye * v_vp * h) - ze * df;
 		ray_dir.normalize();
 
 		// Calculate origin of the ray with lens sample offset
-		Vector lens_offset = (u * lens_sample.x) + (v * lens_sample.y);
-		Vector ray_origin = eye + (lens_offset * aperture);
+		Vector lens_offset = SampleUnitDisk() * aperture;
+		Vector ray_origin =	eye + (xe * lens_offset.x) + (ye * lens_offset.y);
 
 		return Ray(ray_origin, ray_dir);
+	}
+
+	Vector SampleUnitDisk() {
+		float r = sqrt(rand() / (float)RAND_MAX);
+		float theta = 2 * PI * (rand() / (float)RAND_MAX);
+		return Vector(r * cos(theta), r * sin(theta), 0);
 	}
 };
 

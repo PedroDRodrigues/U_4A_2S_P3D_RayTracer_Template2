@@ -578,8 +578,8 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 			float NdotL = normal * L;
 
 			color = getMLighting(scene, closest_object, hit_point, normal, V);
-
-			if (normal * ray.direction > 0) {
+			Vector j = ray.direction - ray.origin;
+			if (normal * j > 0) {
 				normal = normal * -1;
 			}
 
