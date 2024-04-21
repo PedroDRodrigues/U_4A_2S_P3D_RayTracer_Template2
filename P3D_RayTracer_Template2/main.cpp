@@ -36,6 +36,8 @@ bool P3F_scene = true; //choose between P3F scene or a built-in random scene
 #define CAPTION "Whitted Ray-Tracer"
 #define VERTEX_COORD_ATTRIB 0
 #define COLOR_ATTRIB 1
+#define AA_MODE 0 //jitter
+#define SAMPLES 3
 
 unsigned int FrameCount = 0;
 
@@ -452,6 +454,90 @@ void setupGLUT(int argc, char* argv[])
 	}
 }
 
+static float getShadow( Vector& hitPoint,  Light* light) {
+	Vector shadowRayDirection;
+	Vector shadowRayOrigin;
+	shadowRayDirection = light->position;
+	shadowRayDirection -= hitPoint;
+	shadowRayDirection.normalize();
+	shadowRayOrigin = hitPoint + light->position * EPSILON;
+	Ray shadowRay(shadowRayOrigin, shadowRayDirection);
+
+	for (int i = 0; i < scene->getNumObjects(); i++) {
+		Object* object = scene->getObject(i);
+		float t = RAND_MAX;
+		if (scene->getObject(i)->intercepts(shadowRay, t)) {
+			return 1.0f;
+		}
+	}
+	/*
+	for (Plane* plane : scene->) {
+		float t = RAND_MAX;
+		if (plane->intercepts(shadowRay, t)) {
+			return 1.0f;
+		}
+	}
+	*/
+
+	/*for (int i = 0; i < scene->getNumObjects(); i++) {
+		Object* object = scene->getObject(i);
+		float t = RAND_MAX;
+		if (object->intercepts(shadowRay, t)) {
+			return 1.0f;
+		}
+	}*/
+	return 0.0f;
+}
+
+static float getShadowFactor(Vector& hitPoint, Light* light) { //TODO
+	return getShadow(hitPoint, light);
+}
+
+Color getLighting(Scene* scene, Object* object, const Vector& point, const Vector& normal, const Vector& view, const Light* light) {
+
+	Color rayColor;
+	// Create diffuse color
+	Vector N(normal);
+
+	// subtract the point from the light position to get the light direction
+	Vector L = light->position;
+	L -= point;
+	L.normalize();
+
+	float distance = L.length();
+	L.normalize();
+	float attenuate = 1.0f;
+
+	float NdotL = N * L;
+	float intensity = std::max(0.0f, NdotL);
+	Color diffuse = object->GetMaterial()->GetDiffColor() * light->color * intensity * attenuate;
+
+	// Create specular color
+	Vector V(view);
+	Vector H(L + V);
+	H.normalize();
+
+	float shininess = object->GetMaterial()->GetShine();
+	float NdotH = N * H;
+	float specularIntensity = pow(std::max(0.0f, NdotH), shininess);
+	Color specular = object->GetMaterial()->GetSpecColor() * light->color * specularIntensity * attenuate;
+
+	rayColor = diffuse * object->GetMaterial()->GetDiffuse() + specular * object->GetMaterial()->GetSpecular();
+	return rayColor;
+}
+
+Color getMLighting(Scene* scene, Object* object,  Vector& point, const Vector& normal, const Vector& view) {
+	
+	Color rayColor;
+	// Compute illumination with shadows
+	for (unsigned int i = 0; i < scene->getNumLights(); i++) {
+		Light* light = scene->getLight(i);
+		float shadowFactor = getShadowFactor(point, light);
+		rayColor = rayColor + getLighting(scene, object, point, normal, view, light) * (1.0 - shadowFactor);
+	}
+
+	return rayColor;
+}
 
 /////////////////////////////////////////////////////YOUR CODE HERE///////////////////////////////////////////////////////////////////////////////////////
 
@@ -471,14 +557,15 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 		}
 	}
 
+	Color color(0.0f, 0.0f, 0.0f);
+	
 	if (!closest_object) { //if there is no interception return background
 		return scene->GetBackgroundColor();
-	} else {
+	} else {	
 		// Compute hit point and normal
 		Vector hit_point = ray.origin + ray.direction * closest_t;
 		Vector normal = closest_object->getNormal(hit_point).normalize(); //adicionei agr 19/04
-
-		Color color(0.0f, 0.0f, 0.0f);
+		Vector V = scene->GetCamera()->GetEye() - hit_point;
 
 		// Compute lighting
 		for (int i = 0; i < scene->getNumLights(); ++i) {
@@ -489,6 +576,12 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 			Ray shadow_ray(hit_point, L);
 			bool in_shadow = false;
 			float NdotL = normal * L;
+
+			color = getMLighting(scene, closest_object, hit_point, normal, V);
+
+			if (normal * ray.direction > 0) {
+				normal = normal * -1;
+			}
 
 			if (NdotL > 0) {
 				float t;
@@ -507,13 +600,13 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 					if (NdotH > 0) {
 						float specular_power = pow(NdotH, closest_object->GetMaterial()->GetShine());
 						float specular_color = closest_object->GetMaterial()->GetSpecular() * specular_power;
-						color += (light->color * (diffuse_color + specular_color));
+						color = (light->color * (diffuse_color + specular_color));
 					}
 				}
 			}
 		}
 
-		if (depth <= MAX_DEPTH) { // VERIFY
+		if (depth >= MAX_DEPTH) { // VERIFY
 			return color; //changed position
 		}
 
@@ -521,7 +614,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 		if (closest_object->GetMaterial()->GetReflection() > 0) {
 			Vector reflection_direction = ray.direction - (normal * (ray.direction * normal) * 2);
 			Ray reflection_ray(hit_point + (reflection_direction * EPSILON), reflection_direction); //de onde vem o epsilon
-			Color reflection_color = rayTracing(reflection_ray, depth + 1, ior_1); //here should be ior from closest object not original?
+			Color reflection_color = rayTracing(reflection_ray, depth + 1, 1.0f); //here should be ior from closest object not original? //closest_object->GetMaterial()->GetRefrIndex() ON LAST ARGUMENT
 			color += reflection_color * closest_object->GetMaterial()->GetReflection();
 		}
 
@@ -539,69 +632,32 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 				color += refraction_color * closest_object->GetMaterial()->GetTransmittance();
 			}
 		}
+
 		return color;
 	}
 }
 
-// Lighting function to HARD SHADOW
-
-Color getLighting(const Ray& ray, Object* object, const Vector& hitPoint, const Vector& normal)
-{
-	/*Color finalColor;
-
-	// Ambient light
-	finalColor += object->GetMaterial()->GetShine() * scene->GetMaterial()->getAmbient() * scene->getAmbientLight();
-
-	// Diffuse and specular lighting
-	int numLights = scene->getNumLights();
-
-	for (int i = 0; i < numLights; i++) {
-		Light* light = scene->getLight(i);
-		Vector lightDir = light->position - hitPoint;
-		float lightDist = lightDir.length();
-		lightDir = lightDir.normalize();
-
-		// Check if the hit point is in shadow
-		Ray shadowRay(hitPoint + normal * EPSILON, lightDir);
-		bool inShadow = false;
-		if (Accel_Struct == GRID_ACC) {
-			//inShadow = grid_ptr->Tranverse(shadowRay, lightDist, false) != nullptr;
-		}
-		else if (Accel_Struct == BVH_ACC) {
-			//inShadow = bvh_ptr->Transverse(shadowRay) != nullptr;
-		}
-		else {
-			// No acceleration structure, perform brute-force intersection tests
-			/*std::vector<SceneObject*> objects = scene->getObjectVector();
-			for (SceneObject* obj : objects) {
-				float t = INFINITY;
-				if (obj != object && obj->intersect(shadowRay, t)) {
-					inShadow = true;
-					break;
-				}
-			}
-		}
-
-		// If not in shadow, compute diffuse and specular lighting
-		/*if (!inShadow) {
-			float diffuseFactor = normal * lightDir;
-			if (diffuseFactor > 0) {
-				finalColor += object->getMaterial()->GetDiffuse() * light->GetIntensity() * diffuseFactor;
-
-				Vector viewDir = ray.direction;
-				Vector reflectDir = lightDir..reflect(normal);
-				float specularFactor = viewDir * reflectDir;
-				if (specularFactor > 0) {
-					float specularPower = object->GetMaterial()->GetShine();
-					finalColor += light->GetIntensity() * object->GetMaterial()->GetSpecular() * pow(specularFactor, specularPower);
-				}
-			}
-		}*
-	}
-
-	return finalColor;*/
-	Color color;
+Color getColorAux(Ray ray, float x, float y, int index, Color color) {
+	Vector pixel;  //viewport coordinates
+	pixel.x = x + 0.5f;
+	pixel.y = y + 0.5f;
+	// compute primaryRay 
+	ray = scene->GetCamera()->PrimaryRay(pixel);
+	color = color + rayTracing(ray, 1, 1.0);
 	return color;
+}
+
+Color jittering(Ray ray, Vector pixel) {
+	Color color = Color(0.0f, 0.0f, 0.0f);
+	int count = 0;
+	for (int i = 0; i < SAMPLES; i++) {
+		for (int j = 0; j < SAMPLES; j++) {
+			float randomFactor = ((float)rand() / RAND_MAX);
+			color = getColorAux(ray, pixel.x + (i + randomFactor) / SAMPLES, pixel.y + (j + randomFactor) / SAMPLES, count, color);
+			count++;
+		}
+	}
+	return Color(color.r() / count, color.g() / count, color.b() / count);
 }
 
 // Render function by primary ray casting from the eye towards the scene's objects
