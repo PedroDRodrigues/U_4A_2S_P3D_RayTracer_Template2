@@ -75,7 +75,10 @@ Plane::Plane(Vector& P0, Vector& P1, Vector& P2)
    float l;
 
    //Calculate the normal plane: counter-clockwise vectorial product.
-   PN = Vector(0, 0, 0);		
+	Vector  v21 = P1 - P0;
+	Vector  v31 = P2 - P0;
+	PN = v21 % v31;
+	
 
    if ((l=PN.length()) == 0.0)
    {
@@ -85,7 +88,9 @@ Plane::Plane(Vector& P0, Vector& P1, Vector& P2)
    {
      PN.normalize();
 	 //Calculate D
-     D  = 0.0f;
+	 //P0 *= -1;
+     //D  = PN*(P0);
+	 D = 0.00f;
    }
 }
 
@@ -93,29 +98,26 @@ Plane::Plane(Vector& P0, Vector& P1, Vector& P2)
 // Ray/Plane intersection test.
 //
 
-bool Plane::intercepts( Ray& r, float& t )
+bool Plane::intercepts(Ray & r, float& t)
 {
-	// SE HOUVER ERROS 0
-	
-	//PUT HERE YOUR CODE
-	//float denominator = PN.dot(r.direction);
-	float denominator = PN * r.direction;
+	// Calculate the denominator
+	float denominator = PN *  r.direction;
 
-	//if (denominator == 0) {
-		// Ray is parallel to the plane, no intersection
+	// Check if the denominator is close to zero
 	if (fabs(denominator) < EPSILON) {
-		return false;
+		return false; // Ray is parallel to the plane
 	}
 
-	//t = (D - PN.dot(r.origin)) / denominator;
-	float taux = (PN * r.origin) - D / denominator;
-	// Check if the intersection point is in front of the ray origin
+	// Calculate parameter t
+	float taux = ((PN * r.origin) + D) / denominator;
+
+	// Check if the intersection point is behind the ray's origin
 	if (taux < 0) {
 		return false;
 	}
 
+	// Intersection point is valid, assign t and return true
 	t = taux;
-
 	return true;
 }
 
@@ -123,7 +125,6 @@ Vector Plane::getNormal(Vector point)
 {
   return PN;
 }
-
 
 bool Sphere::intercepts(Ray& r, float& t )
 {

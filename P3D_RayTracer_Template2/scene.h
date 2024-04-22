@@ -90,6 +90,7 @@ public:
 
 		 bool intercepts( Ray& r, float& dist );
          Vector getNormal(Vector point);
+		 //AABB GetBoundingBox(void); fui eu que criei
 };
 
 class Triangle : public Object

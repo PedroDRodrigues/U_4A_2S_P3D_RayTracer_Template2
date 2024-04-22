@@ -470,22 +470,14 @@ static float getShadow( Vector& hitPoint,  Light* light) {
 			return 1.0f;
 		}
 	}
-	/*
-	for (Plane* plane : scene->) {
+	
+	/*for (Plane* plane : scene->getPlanes()) {
 		float t = RAND_MAX;
 		if (plane->intercepts(shadowRay, t)) {
 			return 1.0f;
 		}
-	}
-	*/
+	} */
 
-	/*for (int i = 0; i < scene->getNumObjects(); i++) {
-		Object* object = scene->getObject(i);
-		float t = RAND_MAX;
-		if (object->intercepts(shadowRay, t)) {
-			return 1.0f;
-		}
-	}*/
 	return 0.0f;
 }
 
@@ -558,9 +550,20 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 	}
 
 	Color color(0.0f, 0.0f, 0.0f);
-	
+	Object* object1;
+	Plane* plane = nullptr;
+	// Verify if some object is a plane
+	// verify in all objects if they are planes add them to the list of planes
+	for (int i = 0; i < numberObjects; i++) {
+		object1 = scene->getObject(i);
+		plane = dynamic_cast<Plane*>(object1);
+		if (plane != nullptr) {
+			break;
+		}
+	}
+
 	if (!closest_object) { //if there is no interception return background
-		return scene->GetBackgroundColor();
+		return plane->GetMaterial()->GetDiffColor(); //return scene->GetBackgroundColor();
 	} else {	
 		// Compute hit point and normal
 		Vector hit_point = ray.origin + ray.direction * closest_t;
@@ -573,22 +576,25 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 			Vector L = (light->position - hit_point).normalize();
 
 			// Check if point is in shadow
+			hit_point += 0.005;
 			Ray shadow_ray(hit_point, L);
 			bool in_shadow = false;
 			float NdotL = normal * L;
 
 			color = getMLighting(scene, closest_object, hit_point, normal, V);
-			Vector j = ray.direction - ray.origin;
-			if (normal * j > 0) {
+			if (normal * ray.direction > 0) {
 				normal = normal * -1;
 			}
 
 			if (NdotL > 0) {
 				float t;
 
-				if (closest_object->intercepts(shadow_ray, t) && t < (light->position - hit_point).length()) {
-					in_shadow = true;
-					break;
+				for (int j = 0; j < numberObjects; j++) {
+					Object* object = scene->getObject(j);
+					if (object->intercepts(shadow_ray, t) && t < (light->position - hit_point).length()) {
+						in_shadow = true;
+						break;
+					}
 				}
 
 				if (!in_shadow) {
@@ -632,7 +638,6 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 				color += refraction_color * closest_object->GetMaterial()->GetTransmittance();
 			}
 		}
-
 		return color;
 	}
 }
