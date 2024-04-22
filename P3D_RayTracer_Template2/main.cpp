@@ -558,6 +558,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 		object1 = scene->getObject(i);
 		plane = dynamic_cast<Plane*>(object1);
 		if (plane != nullptr) {
+			// TEMPORARY
 			break;
 		}
 	}
@@ -576,12 +577,12 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 			Vector L = (light->position - hit_point).normalize();
 
 			// Check if point is in shadow
-			hit_point += 0.005;
+			hit_point = hit_point+normal*0.001;
 			Ray shadow_ray(hit_point, L);
 			bool in_shadow = false;
 			float NdotL = normal * L;
 
-			color = getMLighting(scene, closest_object, hit_point, normal, V);
+			//color = getMLighting(scene, closest_object, hit_point, normal, V);
 			if (normal * ray.direction > 0) {
 				normal = normal * -1;
 			}
@@ -606,8 +607,23 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 					if (NdotH > 0) {
 						float specular_power = pow(NdotH, closest_object->GetMaterial()->GetShine());
 						float specular_color = closest_object->GetMaterial()->GetSpecular() * specular_power;
-						color = (light->color * (diffuse_color + specular_color));
+						color += (light->color * (diffuse_color + specular_color));
 					}
+					/*
+					Vector LextKd = Vector(light->color.r(), light->color.g(), light->color.b()) % Vector(closest_object->GetMaterial()->GetDiffColor().r(), closest_object->GetMaterial()->GetDiffColor().g(), closest_object->GetMaterial()->GetDiffColor().b());
+					LextKd *= NdotL;
+
+					Vector H = (L - ray.direction).normalize();
+					float NdotH = normal* H;
+
+					if (NdotH > 0) {
+						float specular_power = pow(NdotH, closest_object->GetMaterial()->GetShine());
+						Vector LextKs = Vector(light->color.r(), light->color.g(), light->color.b()) % Vector(closest_object->GetMaterial()->GetSpecColor().r(), closest_object->GetMaterial()->GetSpecColor().g(), closest_object->GetMaterial()->GetSpecColor().b());
+						LextKs *= specular_power;
+						Vector c = LextKd + LextKs;
+						color += Color(c.x, c.y, c.z);
+					}
+					*/
 				}
 			}
 		}
