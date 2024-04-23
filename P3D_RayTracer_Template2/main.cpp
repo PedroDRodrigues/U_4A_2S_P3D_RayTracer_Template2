@@ -602,8 +602,9 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 				}
 
 				if (!in_shadow) {
+					color += getLighting(scene, closest_object, hit_point, normal, V, light);
 
-					float diffuse_color = closest_object->GetMaterial()->GetDiffuse() * NdotL;
+					/*float diffuse_color = closest_object->GetMaterial()->GetDiffuse() * NdotL;
 					Vector H = (L - ray.direction).normalize();
 					float NdotH = normal * H;
 
@@ -611,7 +612,8 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 						//float specular_power = pow(NdotH, closest_object->GetMaterial()->GetShine());
 						//float specular_color = closest_object->GetMaterial()->GetSpecular() * specular_power;
 						//color += (light->color * (diffuse_color + specular_color));
-						color += getMLighting(scene, closest_object, hit_point, normal, V);
+						//color += getMLighting(scene, closest_object, hit_point, normal, V);
+						color += getLighting(scene, closest_object, hit_point, normal, V, light);
 					}
 					/*
 					Vector LextKd = Vector(light->color.r(), light->color.g(), light->color.b()) % Vector(closest_object->GetMaterial()->GetDiffColor().r(), closest_object->GetMaterial()->GetDiffColor().g(), closest_object->GetMaterial()->GetDiffColor().b());
