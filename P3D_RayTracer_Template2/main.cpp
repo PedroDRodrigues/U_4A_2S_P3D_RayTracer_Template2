@@ -465,7 +465,12 @@ void setupGLUT(int argc, char* argv[])
 	}
 }
 
-static float getShadow( Vector& hitPoint,  Light* light) {
+static float getShadow(Vector& hitPoint, Light* light) {
+	if (SOFT_SHADOWS == 0) {
+		Vector shadowRayDirection;
+		Vector shadowRayOrigin;
+		Vector to_subtract;
+	}
 	Vector shadowRayDirection;
 	Vector shadowRayOrigin;
 	shadowRayDirection = light->position;
@@ -482,11 +487,47 @@ static float getShadow( Vector& hitPoint,  Light* light) {
 		}
 	}
 
+	/*for (Plane* plane : scene->getPlanes()) {
+		float t = RAND_MAX;
+		if (plane->intercepts(shadowRay, t)) {
+			return 1.0f;
+		}
+	} */
+
 	return 0.0f;
 }
 
 static float getShadowFactor(Vector& hitPoint, Light* light) { //TODO
-	return getShadow(hitPoint, light);
+	if (SOFT_SHADOWS == 0) {
+		std::vector<Vector> shadowFactors;
+		for (int i = 0; i < SAMPLES; i++) {
+			for (int j = 0; j < SAMPLES; j++) {
+				float randomFactor = ((float)rand() / RAND_MAX);
+				shadowFactors.push_back({ (light->position.x + i + randomFactor) * 0.25f,
+						 light->position.y + (j + randomFactor) * 0.25f	,
+						 light->position.z });
+			}
+		}
+		for (int i = shadowFactors.size() - 1; i != -1; i--) {
+			int j = (double)rand() / RAND_MAX * i;
+			Vector temp = shadowFactors.at(i);
+			shadowFactors.at(i) = shadowFactors.at(j);
+			shadowFactors.at(j) = temp;
+		}
+
+
+		float shadowFactor = 0.0f;
+		for (unsigned int i = 0; i != shadowFactors.size(); i++) {
+			Light sl = Light(shadowFactors.at(i), light->color);
+			shadowFactor += getShadow(hitPoint, &sl);
+		}
+		shadowFactor /= shadowFactors.size();
+		return shadowFactor;
+
+	}
+	else {
+		return getShadow(hitPoint, light);
+	}
 }
 
 Color getLighting(Scene* scene, Object* object, const Vector& point, const Vector& normal, const Vector& view, const Light* light) {
