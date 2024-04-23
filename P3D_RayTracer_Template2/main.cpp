@@ -36,8 +36,19 @@ bool P3F_scene = true; //choose between P3F scene or a built-in random scene
 #define CAPTION "Whitted Ray-Tracer"
 #define VERTEX_COORD_ATTRIB 0
 #define COLOR_ATTRIB 1
-#define AA_MODE 0 //jitter
+#define GRID_ON true
+#define DOF_ON false
+// 0/1/2: off/jitter/montecarlo
+#define AA_MODE 0
+// area 2: very heavy, alternate version
+// area 3: very light, alternate version
+// area is the correct definitive version
+// 0/1/2: off/random/area	(/area2/area3)
+#define SOFT_SHADOWS 0
+// 0/1/2: off/no_pow/pow
+#define REFLECTION_MODE 0
 #define SAMPLES 3
+#define REFLECTION_SAMPLES 2
 
 unsigned int FrameCount = 0;
 
@@ -470,13 +481,6 @@ static float getShadow( Vector& hitPoint,  Light* light) {
 			return 1.0f;
 		}
 	}
-	
-	/*for (Plane* plane : scene->getPlanes()) {
-		float t = RAND_MAX;
-		if (plane->intercepts(shadowRay, t)) {
-			return 1.0f;
-		}
-	} */
 
 	return 0.0f;
 }
@@ -499,7 +503,6 @@ Color getLighting(Scene* scene, Object* object, const Vector& point, const Vecto
 	float distance = L.length();
 	L.normalize();
 	float attenuate = 1.0f;
-
 	float NdotL = N * L;
 	float intensity = std::max(0.0f, NdotL);
 	Color diffuse = object->GetMaterial()->GetDiffColor() * light->color * intensity * attenuate;
@@ -569,7 +572,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 		// Compute hit point and normal
 		Vector hit_point = ray.origin + ray.direction * closest_t;
 		Vector normal = closest_object->getNormal(hit_point).normalize(); //adicionei agr 19/04
-		Vector V = scene->GetCamera()->GetEye() - hit_point;
+		Vector V = ray.direction * (-1);//scene->GetCamera()->GetEye() - hit_point;
 
 		// Compute lighting
 		for (int i = 0; i < scene->getNumLights(); ++i) {
@@ -583,7 +586,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 			float NdotL = normal * L;
 
 			//color = getMLighting(scene, closest_object, hit_point, normal, V);
-			if (normal * ray.direction > 0) {
+			if (normal * (ray.direction - ray.origin) > 0) {
 				normal = normal * -1;
 			}
 
@@ -605,9 +608,10 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 					float NdotH = normal * H;
 
 					if (NdotH > 0) {
-						float specular_power = pow(NdotH, closest_object->GetMaterial()->GetShine());
-						float specular_color = closest_object->GetMaterial()->GetSpecular() * specular_power;
-						color += (light->color * (diffuse_color + specular_color));
+						//float specular_power = pow(NdotH, closest_object->GetMaterial()->GetShine());
+						//float specular_color = closest_object->GetMaterial()->GetSpecular() * specular_power;
+						//color += (light->color * (diffuse_color + specular_color));
+						color += getMLighting(scene, closest_object, hit_point, normal, V);
 					}
 					/*
 					Vector LextKd = Vector(light->color.r(), light->color.g(), light->color.b()) % Vector(closest_object->GetMaterial()->GetDiffColor().r(), closest_object->GetMaterial()->GetDiffColor().g(), closest_object->GetMaterial()->GetDiffColor().b());
@@ -653,6 +657,20 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 				Color refraction_color = rayTracing(refraction_ray, depth + 1, closest_object->GetMaterial()->GetRefrIndex());
 				color += refraction_color * closest_object->GetMaterial()->GetTransmittance();
 			}
+
+			/*float snell = closest_object->GetMaterial()->GetRefrIndex() / ior_1;
+			float totalnternalReflection = 1 - snell * snell * (1 - (ray.direction * normal) * (ray.direction * normal));
+
+			if (totalnternalReflection >= 0) { // not total internal reflection
+				Vector refractionDirection = ray.direction * snell + normal * (snell * (ray.direction * normal) - sqrt(totalnternalReflection));
+				refractionDirection.normalize();
+				Ray refractionRay(hit_point + normal * EPSILON, refractionDirection);
+				Color refractionColor = rayTracing(refractionRay, depth + 1, 1.0f);//closest_object->GetMaterial()->GetRefrIndex());
+				color += refractionColor * closest_object->GetMaterial()->GetTransmittance();
+			}*/
+
+
+
 		}
 		return color;
 	}
