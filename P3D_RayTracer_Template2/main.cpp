@@ -465,103 +465,6 @@ void setupGLUT(int argc, char* argv[])
 	}
 }
 
-static float getShadow(Vector& hitPoint, Light* light) {
-	if (SOFT_SHADOWS == 0) {
-		Vector shadowRayDirection;
-		Vector shadowRayOrigin;
-		Vector to_subtract;
-	}
-	Vector shadowRayDirection;
-	Vector shadowRayOrigin;
-	shadowRayDirection = light->position;
-	shadowRayDirection -= hitPoint;
-	shadowRayDirection.normalize();
-	shadowRayOrigin = hitPoint + light->position * EPSILON;
-	Ray shadowRay(shadowRayOrigin, shadowRayDirection);
-
-	for (int i = 0; i < scene->getNumObjects(); i++) {
-		Object* object = scene->getObject(i);
-		float t = RAND_MAX;
-		if (scene->getObject(i)->intercepts(shadowRay, t)) {
-			return 1.0f;
-		}
-	}
-
-	/*for (Plane* plane : scene->getPlanes()) {
-		float t = RAND_MAX;
-		if (plane->intercepts(shadowRay, t)) {
-			return 1.0f;
-		}
-	} */
-
-	return 0.0f;
-}
-
-static float getShadowFactor(Vector& hitPoint, Light* light) { //TODO
-	if (SOFT_SHADOWS == 0) {
-		std::vector<Vector> shadowFactors;
-		for (int i = 0; i < SAMPLES; i++) {
-			for (int j = 0; j < SAMPLES; j++) {
-				float randomFactor = ((float)rand() / RAND_MAX);
-				shadowFactors.push_back({ (light->position.x + i + randomFactor) * 0.25f,
-						 light->position.y + (j + randomFactor) * 0.25f	,
-						 light->position.z });
-			}
-		}
-		for (int i = shadowFactors.size() - 1; i != -1; i--) {
-			int j = (double)rand() / RAND_MAX * i;
-			Vector temp = shadowFactors.at(i);
-			shadowFactors.at(i) = shadowFactors.at(j);
-			shadowFactors.at(j) = temp;
-		}
-
-
-		float shadowFactor = 0.0f;
-		for (unsigned int i = 0; i != shadowFactors.size(); i++) {
-			Light sl = Light(shadowFactors.at(i), light->color);
-			shadowFactor += getShadow(hitPoint, &sl);
-		}
-		shadowFactor /= shadowFactors.size();
-		return shadowFactor;
-
-	}
-	else {
-		return getShadow(hitPoint, light);
-	}
-}
-
-Color getLighting(Scene* scene, Object* object, const Vector& point, const Vector& normal, const Vector& view, const Light* light) {
-
-	Color rayColor;
-	// Create diffuse color
-	Vector N(normal);
-
-	// subtract the point from the light position to get the light direction
-	Vector L = light->position;
-	L -= point;
-	L.normalize();
-
-	float distance = L.length();
-	L.normalize();
-	float attenuate = 1.0f;
-	float NdotL = N * L;
-	float intensity = std::max(0.0f, NdotL);
-	Color diffuse = object->GetMaterial()->GetDiffColor() * light->color * intensity * attenuate;
-
-	// Create specular color
-	Vector V(view);
-	Vector H(L + V);
-	H.normalize();
-
-	float shininess = object->GetMaterial()->GetShine();
-	float NdotH = N * H;
-	float specularIntensity = pow(std::max(0.0f, NdotH), shininess);
-	Color specular = object->GetMaterial()->GetSpecColor() * light->color * specularIntensity * attenuate;
-
-	rayColor = diffuse * object->GetMaterial()->GetDiffuse() + specular * object->GetMaterial()->GetSpecular();
-	return rayColor;
-}
-
 void processLight(Scene* scene, Vector& L, Color& lightColor, Color& color, Material* material, Ray& ray, Vector& precise_hit_point, Vector& normal) {
 	Object* object = NULL;
 	float closest_t = FLT_MAX;
@@ -593,28 +496,12 @@ void processLight(Scene* scene, Vector& L, Color& lightColor, Color& color, Mate
 
 		color += (diff * material->GetDiffuse()) + (spec * material->GetSpecular());
 	}
-
-}
-
-
-Color getMLighting(Scene* scene, Object* object,  Vector& point, const Vector& normal, const Vector& view) {
-	
-	Color rayColor;
-	// Compute illumination with shadows
-	for (unsigned int i = 0; i < scene->getNumLights(); i++) {
-		Light* light = scene->getLight(i);
-		float shadowFactor = getShadowFactor(point, light);
-		rayColor = rayColor + getLighting(scene, object, point, normal, view, light) * (1.0 - shadowFactor);
-	}
-
-	return rayColor;
 }
 
 /////////////////////////////////////////////////////YOUR CODE HERE///////////////////////////////////////////////////////////////////////////////////////
 
 Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medium 1 where the ray is travelling
 {
-	//INSERT HERE YOUR CODE
 	int numberObjects = scene->getNumObjects();
 	float closest_t = FLT_MAX; // Find the closest intersection point
 	Object* closest_object = NULL;
@@ -633,28 +520,15 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 	}
 
 	if (!closest_object) { //if there is no interception return background
-		//if (scene->GetSkyBoxFlg()) {
-			//return scene->GetSkyboxColor(ray);
-		//}
-		//else {
-			return scene->GetBackgroundColor();
-		//}
-	}
-
-	//Object* object1;
-	// Verify if some object is a plane
-	// verify in all objects if they are planes add them to the list of planes
-	/*for (int i = 0; i < numberObjects; i++) {
-		object1 = scene->getObject(i);
-		plane = dynamic_cast<Plane*>(object1);
-		if (plane != nullptr) {
-			// TEMPORARY
-			break;
+		if (scene->GetSkyBoxFlg()) {
+			return scene->GetSkyboxColor(ray);
 		}
-	}*/
-
-	
-		// Compute hit point and normal
+		else {
+			return scene->GetBackgroundColor();
+		}
+	}
+		
+	// Compute hit point and normal
 	Vector hit_point = ray.origin + ray.direction * closest_t;
 	Vector normal = closest_object->getNormal(hit_point).normalize(); //adicionei agr 19/04
 	Vector precise_hit_point = hit_point + normal * 0.001f;
@@ -666,60 +540,8 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 		Light* light = scene->getLight(i);
 		Vector L = (light->position - hit_point).normalize();
 
-		// Check if point is in shadow
-		//Ray shadow_ray(hit_point, L);
-		//bool in_shadow = false;
-		//float NdotL = normal * L;
-
 		processLight(scene, L, light->color, color, closest_object->GetMaterial(), ray, precise_hit_point, normal);
-
-		/*//color = getMLighting(scene, closest_object, hit_point, normal, V);
-		if (normal * (ray.direction - ray.origin) > 0) {
-			normal = normal * -1;
-		}
-
-		if (NdotL > 0) {
-			float t;
-
-			for (int j = 0; j < numberObjects; j++) {
-				Object* object = scene->getObject(j);
-				if (object->intercepts(shadow_ray, t) && t < (light->position - hit_point).length()) {
-					in_shadow = true;
-					break;
-				}
-			}
-
-			if (!in_shadow) {
-				color = getLighting(scene, closest_object, precise_hit_point, normal, V, light);
-
-				/*float diffuse_color = closest_object->GetMaterial()->GetDiffuse() * NdotL;
-				Vector H = (L - ray.direction).normalize();
-				float NdotH = normal * H;
-
-				if (NdotH > 0) {
-					//float specular_power = pow(NdotH, closest_object->GetMaterial()->GetShine());
-					//float specular_color = closest_object->GetMaterial()->GetSpecular() * specular_power;
-					//color += (light->color * (diffuse_color + specular_color));
-					//color += getMLighting(scene, closest_object, hit_point, normal, V);
-					color += getLighting(scene, closest_object, hit_point, normal, V, light);
-				}
-				/*
-				Vector LextKd = Vector(light->color.r(), light->color.g(), light->color.b()) % Vector(closest_object->GetMaterial()->GetDiffColor().r(), closest_object->GetMaterial()->GetDiffColor().g(), closest_object->GetMaterial()->GetDiffColor().b());
-				LextKd *= NdotL;
-
-				Vector H = (L - ray.direction).normalize();
-				float NdotH = normal* H;
-
-				if (NdotH > 0) {
-					float specular_power = pow(NdotH, closest_object->GetMaterial()->GetShine());
-					Vector LextKs = Vector(light->color.r(), light->color.g(), light->color.b()) % Vector(closest_object->GetMaterial()->GetSpecColor().r(), closest_object->GetMaterial()->GetSpecColor().g(), closest_object->GetMaterial()->GetSpecColor().b());
-					LextKs *= specular_power;
-					Vector c = LextKd + LextKs;
-					color += Color(c.x, c.y, c.z);
-				}
-				
-			}*/
-		
+	
 	}
 
 	if (depth >= MAX_DEPTH) { // VERIFY
@@ -785,33 +607,8 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 		}
 
 		if (!SCHLICK_APPROX || insqrt < 0) {
-			KR = 1/ (2 * (R0 + R1));
+			KR = 1/ 2 * (R0 + R1);
 		}
-
-
-		// Calculate refraction direction and ratio of indices of refraction
-		/*float ior_ratio = ior_1 / closest_object->GetMaterial()->GetRefrIndex();
-		float cos_theta_i = -(ray.direction * normal);
-		float sin_theta_t_sqr = ior_ratio * ior_ratio * (1.0f - cos_theta_i * cos_theta_i);
-
-		if (sin_theta_t_sqr < 1) {
-			float cos_theta_t = sqrt(1 - sin_theta_t_sqr);
-			Vector refraction_direction = ray.direction * ior_ratio + normal * (ior_ratio * cos_theta_i - cos_theta_t);
-			Ray refraction_ray(hit_point - normal * EPSILON, refraction_direction); //de onde vem o epsilon
-			Color refraction_color = rayTracing(refraction_ray, depth + 1, closest_object->GetMaterial()->GetRefrIndex());
-			color += refraction_color * closest_object->GetMaterial()->GetTransmittance();
-		}
-		*/
-		/*float snell = closest_object->GetMaterial()->GetRefrIndex() / ior_1;
-		float totalnternalReflection = 1 - snell * snell * (1 - (ray.direction * normal) * (ray.direction * normal));
-
-		if (totalnternalReflection >= 0) { // not total internal reflection
-			Vector refractionDirection = ray.direction * snell + normal * (snell * (ray.direction * normal) - sqrt(totalnternalReflection));
-			refractionDirection.normalize();
-			Ray refractionRay(hit_point + normal * EPSILON, refractionDirection);
-			Color refractionColor = rayTracing(refractionRay, depth + 1, 1.0f);//closest_object->GetMaterial()->GetRefrIndex());
-			color += refractionColor * closest_object->GetMaterial()->GetTransmittance();
-		}*/
 	}
 	else {
 		KR = closest_object->GetMaterial()->GetSpecular();

@@ -42,7 +42,7 @@ bool Triangle::intercepts(Ray& r, float& t ) {
 
 	Vector e1 = points[1] - points[0];
 	Vector e2 = points[2] - points[0];
-	Vector h = Vector::cross(r.direction, e2);
+	Vector h = r.direction % e2;
 	float a = e1 * h;
 
 	if (a > -EPSILON && a < EPSILON)
@@ -55,7 +55,7 @@ bool Triangle::intercepts(Ray& r, float& t ) {
 	if (u < 0.0f || u > 1.0f)
 		return false;
 
-	Vector q = Vector::cross(s, e1);
+	Vector q = s % e1;
 	float v = f * (r.direction * q);
 
 	if (v < 0.0f || u + v > 1.0f)
@@ -90,7 +90,7 @@ Plane::Plane(Vector& P0, Vector& P1, Vector& P2)
 	 //Calculate D
 	 //P0 *= -1;
      //D  = PN*(P0);
-	 D = 0.00f;
+	 D = PN * P; // NOT SURE ABOUT IT
    }
 }
 
@@ -108,11 +108,13 @@ bool Plane::intercepts(Ray & r, float& t)
 		return false; // Ray is parallel to the plane
 	}
 
+	float numerator = (r.origin - P) * PN;
+
 	// Calculate parameter t
-	float taux = ((PN * r.origin) + D) / denominator;
+	float taux = - (numerator / denominator);
 
 	// Check if the intersection point is behind the ray's origin
-	if (taux < 0) {
+	if (taux <= 0) {
 		return false;
 	}
 
@@ -129,14 +131,21 @@ Vector Plane::getNormal(Vector point)
 bool Sphere::intercepts(Ray& r, float& t )
 {
 	//PUT HERE YOUR CODE
-	Vector oc = r.origin - center;
+	Vector oc = center - r.origin;
 	//float a = r.direction.dot(r.direction);
 	float a = r.direction * r.direction;
 	//float b = 2.0f * oc.dot(r.direction);
-	float b = 2.0f * (oc * r.direction);
+	float b = oc * r.direction;
 	//float c = oc.dot(oc) - radius * radius;
 	float c = oc * oc - (radius * radius);
-	float discriminant = b * b - 4 * a * c;
+
+	if (c > 0) {
+		if (b > 0) {
+			return false;
+		}
+	}
+
+	float discriminant = b * b - c;
 
 	if (discriminant < 0) {
 		// No intersection
@@ -144,7 +153,7 @@ bool Sphere::intercepts(Ray& r, float& t )
 	}
 
 	// Find the nearest root that lies in the acceptable range.
-	float sqrtDiscriminant = sqrt(discriminant);
+	/*float sqrtDiscriminant = sqrt(discriminant);
 	float root1 = (-b - sqrtDiscriminant) / (2.0f * a);
 	float root2 = (-b + sqrtDiscriminant) / (2.0f * a);
 
@@ -160,6 +169,15 @@ bool Sphere::intercepts(Ray& r, float& t )
 	}
 
 	t = root1;
+	return true;*/
+
+	if (c > 0) {
+		t = b - sqrt(discriminant);
+	}
+	else {
+		t = b + sqrt(discriminant);
+	}
+
 	return true;
 }
 
@@ -170,11 +188,8 @@ Vector Sphere::getNormal( Vector point )
 	return (normal.normalize());
 }
 
-AABB Sphere::GetBoundingBox() {
-	//Vector a_min;  Comment base code
-	//Vector a_max ; Comment base code
-
-	//PUT HERE YOUR CODE
+AABB Sphere::GetBoundingBox() 
+{
 	Vector a_min(center.x - radius, center.y - radius, center.z - radius);
 	Vector a_max(center.x + radius, center.y + radius, center.z + radius);
 
@@ -193,34 +208,84 @@ AABB aaBox::GetBoundingBox() {
 
 bool aaBox::intercepts(Ray& ray, float& t)
 {
-	//PUT HERE YOUR CODE
-	float tMin = (min.x - ray.origin.x) / ray.direction.x;
-	float tMax = (max.x - ray.origin.x) / ray.direction.x;
+	Vector tmin, tmax;
+	float tIn, tOut;
 
-	if (tMin > tMax) std::swap(tMin, tMax);
+	float aux = 1.0f / ray.direction.x;
+	if (aux >= 0) {
+		tmin.x = (min.x - ray.origin.x) * aux;
+		tmax.x = (max.x - ray.origin.x) * aux;
+	}
+	else {
+		tmin.x = (max.x - ray.origin.x) * aux;
+		tmax.x = (min.x - ray.origin.x) * aux;
+	}
 
-	float tYMin = (min.y - ray.origin.y) / ray.direction.y;
-	float tYMax = (max.y - ray.origin.y) / ray.direction.y;
+	aux = 1.0f / ray.direction.y;
+	if (aux >= 0) {
+		tmin.y = (min.y - ray.origin.y) * aux;
+		tmax.y = (max.y - ray.origin.y) * aux;
+	}
+	else {
+		tmin.y = (max.y - ray.origin.y) * aux;
+		tmax.y = (min.y - ray.origin.y) * aux;
+	}
 
-	if (tYMin > tYMax) std::swap(tYMin, tYMax);
+	aux = 1.0f / ray.direction.z;
+	if (aux >= 0) {
+		tmin.z = (min.z - ray.origin.z) * aux;
+		tmax.z = (max.z - ray.origin.z) * aux;
+	}
+	else {
+		tmin.z = (max.z - ray.origin.z) * aux;
+		tmax.z = (min.z - ray.origin.z) * aux;
+	}
 
-	if ((tMin > tYMax) || (tYMin > tMax)) return false;
+	Vector faceIn, faceOut;
+	if (tmin.x > tmin.y) {
+		tIn = tmin.x;
+		faceIn = Vector(tmin.x < 0 ? -1 : 1, 0, 0);
+	}
+	else {
+		tIn = tmin.y;
+		faceIn = Vector(0, tmin.y < 0 ? -1 : 1, 0);
+	}
 
-	if (tYMin > tMin) tMin = tYMin;
-	if (tYMax < tMax) tMax = tYMax;
+	if (tmin.z > tIn) {
+		tIn = tmin.z;
+		faceIn = Vector(0, 0, tmin.z < 0 ? -1 : 1);
+	}
+	
 
-	float tZMin = (min.z - ray.origin.z) / ray.direction.z;
-	float tZMax = (max.z - ray.origin.z) / ray.direction.z;
+	if (tmax.x < tmax.y) {
+		tOut = tmax.x;
+		faceOut = Vector(tmax.x < 0 ? -1 : 1, 0, 0);
+	}
+	else {
+		tOut = tmax.y;
+		faceOut = Vector(0, tmax.y < 0 ? -1 : 1, 0);
+	}
 
-	if (tZMin > tZMax) std::swap(tZMin, tZMax);
+	if (tmax.z < tOut) {
+		tOut = tmax.z;
+		faceOut = Vector(0, 0, tmax.z < 0 ? -1 : 1);
+	}
 
-	if ((tMin > tZMax) || (tZMin > tMax)) return false;
+	if (tIn < tOut && tOut > EPSILON) 
+	{
+		if (tIn > EPSILON) {
+			t = tIn;
+			Normal = faceIn;
+		}
+		else {
+			t = tOut;
+			Normal = faceOut;
+		}
+			
+		return true;
+	}
 
-	if (tZMin > tMin) tMin = tZMin;
-	if (tZMax < tMax) tMax = tZMax;
-
-	t = tMin < 0 ? tMax : tMin;
-	return true;
+	return false;
 }
 
 Vector aaBox::getNormal(Vector point)

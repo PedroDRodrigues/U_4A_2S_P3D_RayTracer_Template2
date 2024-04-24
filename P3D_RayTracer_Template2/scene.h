@@ -83,6 +83,7 @@ class Plane : public Object
 protected:
   Vector	 PN;
   float 	 D;
+  Vector     P;
 
 public:
 		 Plane		(Vector& PNc, float Dc);
@@ -91,6 +92,7 @@ public:
 		 bool intercepts( Ray& r, float& dist );
          Vector getNormal(Vector point);
 		 //AABB GetBoundingBox(void); fui eu que criei
+		 int getClass() { return 0; }
 };
 
 class Triangle : public Object
@@ -101,6 +103,7 @@ public:
 	bool intercepts( Ray& r, float& t);
 	Vector getNormal(Vector point);
 	AABB GetBoundingBox(void);
+	int getClass() { return 1; }
 	
 protected:
 	Vector points[3];
@@ -119,6 +122,7 @@ public:
 	bool intercepts( Ray& r, float& t);
 	Vector getNormal(Vector point);
 	AABB GetBoundingBox(void);
+	int getClass() { return 2; }
 
 private:
 	Vector center;
