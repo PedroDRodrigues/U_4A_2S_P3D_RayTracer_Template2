@@ -28,6 +28,7 @@ public:
 	float GetPlaneDist() { return plane_dist; }
 	float GetFar() {return vfar; }
 	float GetAperture() { return aperture; }
+	float GetFocalRatio() { return focal_ratio; }
 
     Camera( Vector from, Vector At, Vector Up, float angle, float hither, float yon, int ResX, int ResY, float Aperture_ratio, float Focal_ratio) {
 	    eye = from;
@@ -49,6 +50,7 @@ public:
 	    u = u / u.length();
 
 	    v = n % u;
+		
 		ze = n.normalize();
 		xe = up % ze;
 		xe = xe.normalize();
@@ -78,12 +80,19 @@ public:
 
 	Ray PrimaryRay(const Vector& pixel_sample) //  Rays cast from the Eye to a pixel sample which is in Viewport coordinates
 	{
-		// Convert pixel sample to viewport coordinates
+		/*// Convert pixel sample to viewport coordinates
 		float u_vp = (pixel_sample.x / res_x) - 0.5;
 		float v_vp = (pixel_sample.y / res_y) - 0.5;
 
 		// Calculate direction of the ray
 		Vector ray_dir = (xe*u_vp*w) + (ye * v_vp*h)-ze*df;
+		ray_dir.normalize();*/
+
+		Vector vX = u * w * (pixel_sample.x / res_x - 0.5f);
+		Vector vY = v * h * (pixel_sample.y / res_y - 0.5f);
+		Vector vZ = n * -plane_dist;
+
+		Vector ray_dir = vX + vY + vZ;
 		ray_dir.normalize();
 
 		// Calculate origin of the ray
