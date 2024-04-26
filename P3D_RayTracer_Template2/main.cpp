@@ -607,7 +607,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 		}
 
 		if (!SCHLICK_APPROX || insqrt < 0) {
-			KR = 1/ 2 * (R0 + R1);
+			KR = 1 / 2 * (R0 + R1);
 		}
 	}
 	else {

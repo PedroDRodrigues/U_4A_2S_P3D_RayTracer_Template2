@@ -130,55 +130,55 @@ Vector Plane::getNormal(Vector point)
 
 bool Sphere::intercepts(Ray& r, float& t )
 {
-	//PUT HERE YOUR CODE
-	Vector oc = center - r.origin;
-	//float a = r.direction.dot(r.direction);
-	float a = r.direction * r.direction;
-	//float b = 2.0f * oc.dot(r.direction);
-	float b = oc * r.direction;
-	//float c = oc.dot(oc) - radius * radius;
-	float c = oc * oc - (radius * radius);
+	/* bool intersect(const Ray &ray) const
+{
+        float t0, t1; // solutions for t if the ray intersects
+#if 0
+        // Geometric solution
+        Vec3f L = center - ray.orig;
+        float tca = L.dotProduct(ray.dir);
+        // if (tca < 0) return false;
+        float d2 = L.dotProduct(L) - tca * tca;
+        if (d2 > radius * radius) return false;
+        float thc = sqrt(radius * radius - d2);
+        t0 = tca - thc;
+        t1 = tca + thc;
+#else
+        // Analytic solution
+        Vec3f L = ray.orig - center;
+        float a = ray.dir.dotProduct(ray.dir);
+        float b = 2 * ray.dir.dotProduct(L);
+        float c = L.dotProduct(L) - radius * radius;
+        if (!solveQuadratic(a, b, c, t0, t1)) return false;
+#endif
+        if (t0 > t1) std::swap(t0, t1);
 
-	if (c > 0) {
-		if (b > 0) {
-			return false;
-		}
+        if (t0 < 0) {
+            t0 = t1; // If t0 is negative, let's use t1 instead.
+            if (t0 < 0) return false; // Both t0 and t1 are negative.
+        }
+
+        t = t0;
+
+        return true;
+} */ 
+
+	Vector L = center - r.origin;
+	float tca = L * r.direction;
+	float d2 = L * L - tca * tca;
+	float radius2 = radius * radius;
+
+	if (d2 > radius2) return false;
+	float thc = sqrt(radius2 - d2);
+
+	if (tca - thc > EPSILON) {
+		t = tca - thc;
+		return true;
 	}
-
-	float discriminant = b * b - c;
-
-	if (discriminant < 0) {
-		// No intersection
-		return false;
+	else if (tca + thc > EPSILON) {
+		t = tca + thc;
+		return true;
 	}
-
-	// Find the nearest root that lies in the acceptable range.
-	/*float sqrtDiscriminant = sqrt(discriminant);
-	float root1 = (-b - sqrtDiscriminant) / (2.0f * a);
-	float root2 = (-b + sqrtDiscriminant) / (2.0f * a);
-
-	if (root1 > root2) {
-		std::swap(root1, root2);
-	}
-
-	if (root1 < 0) {
-		root1 = root2; // If root1 is negative, use root2
-		if (root1 < 0) {
-			return false; // Both roots are negative, no intersection
-		}
-	}
-
-	t = root1;
-	return true;*/
-
-	if (c > 0) {
-		t = b - sqrt(discriminant);
-	}
-	else {
-		t = b + sqrt(discriminant);
-	}
-
-	return true;
 }
 
 

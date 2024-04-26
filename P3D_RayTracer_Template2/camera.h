@@ -103,25 +103,21 @@ public:
 
 	Ray PrimaryRay(const Vector& lens_sample, const Vector& pixel_sample) // DOF: Rays cast from  a thin lens sample to a pixel sample
 	{
-		// Convert pixel sample to viewport coordinates
+        // Convert pixel sample to viewport coordinates
 		float u_vp = (pixel_sample.x / res_x) - 0.5;
 		float v_vp = (pixel_sample.y / res_y) - 0.5;
 
-		// Calculate direction of the ray
-		Vector ray_dir = (xe * u_vp * w) + (ye * v_vp * h) - ze * df;
+	    float a = w * (u_vp / res_x - 0.5f) * focal_ratio;
+		float b = h * (v_vp / res_y - 0.5f) * focal_ratio;
+		float c = 0.0f;
+
+		Vector p(a, b, c);
+
+		Vector ray_origin = eye + (u * lens_sample.x) + (v * lens_sample.y);
+		Vector ray_dir = (u * (p.x - lens_sample.x)) + (v * (p.y - lens_sample.y)) + (n * (- (focal_ratio) * plane_dist));
 		ray_dir.normalize();
 
-		// Calculate origin of the ray with lens sample offset
-		Vector lens_offset = SampleUnitDisk() * aperture;
-		Vector ray_origin =	eye + (xe * lens_offset.x) + (ye * lens_offset.y);
-
 		return Ray(ray_origin, ray_dir);
-	}
-
-	Vector SampleUnitDisk() {
-		float r = sqrt(rand() / (float)RAND_MAX);
-		float theta = 2 * PI * (rand() / (float)RAND_MAX);
-		return Vector(r * cos(theta), r * sin(theta), 0);
 	}
 };
 
