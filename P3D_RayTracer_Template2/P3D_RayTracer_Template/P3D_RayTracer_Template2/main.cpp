@@ -1,7 +1,7 @@
  ///////////////////////////////////////////////////////////////////////
 //
 // P3D Course
-// (c) 2021 by João Madeiras Pereira
+// (c) 2021 by Joï¿½o Madeiras Pereira
 //Ray Tracing P3F scenes and drawing points with Modern OpenGL
 //
 ///////////////////////////////////////////////////////////////////////
@@ -24,8 +24,6 @@
 #include "maths.h"
 #include "macros.h"
 
-using namespace std;
-
 //Enable OpenGL drawing.  
 bool drawModeEnabled = true;
 
@@ -36,19 +34,6 @@ bool P3F_scene = true; //choose between P3F scene or a built-in random scene
 #define CAPTION "Whitted Ray-Tracer"
 #define VERTEX_COORD_ATTRIB 0
 #define COLOR_ATTRIB 1
-#define GRID_ON true
-#define DOF_ON false
-// 0/1/2: off/jitter/montecarlo
-#define AA_MODE 0
-// area 2: very heavy, alternate version
-// area 3: very light, alternate version
-// area is the correct definitive version
-// 0/1/2: off/random/area	(/area2/area3)
-#define SOFT_SHADOWS 0
-// 0/1/2: off/no_pow/pow
-#define REFLECTION_MODE 0
-#define SAMPLES 3
-#define REFLECTION_SAMPLES 2
 
 unsigned int FrameCount = 0;
 
@@ -89,21 +74,15 @@ GLint UniformId;
 
 Scene* scene = NULL;
 
-Grid grid;
-BVH bvh;
-
-Grid* grid_ptr;
-BVH* bvh_ptr;
-
+Grid* grid_ptr = NULL;
+BVH* bvh_ptr = NULL;
 accelerator Accel_Struct = NONE;
 
 int RES_X, RES_Y;
 
 int WindowHandle = 0;
 
-bool SCHLICK_APPROX = false;
 
-int USE_ACCEL_STRUCT = 2;
 
 /////////////////////////////////////////////////////////////////////// ERRORS
 
@@ -205,8 +184,8 @@ void createBufferObjects()
 	glGenBuffers(2, VboId);
 	glBindBuffer(GL_ARRAY_BUFFER, VboId[0]);
 
-	/* Só se faz a alocação dos arrays glBufferData (NULL), e o envio dos pontos para a placa gráfica
-	é feito na drawPoints com GlBufferSubData em tempo de execução pois os arrays são GL_DYNAMIC_DRAW */
+	/* Sï¿½ se faz a alocaï¿½ï¿½o dos arrays glBufferData (NULL), e o envio dos pontos para a placa grï¿½fica
+	ï¿½ feito na drawPoints com GlBufferSubData em tempo de execuï¿½ï¿½o pois os arrays sï¿½o GL_DYNAMIC_DRAW */
 	glBufferData(GL_ARRAY_BUFFER, size_vertices, NULL, GL_DYNAMIC_DRAW);
 	glEnableVertexAttribArray(VERTEX_COORD_ATTRIB);
 	glVertexAttribPointer(VERTEX_COORD_ATTRIB, 2, GL_FLOAT, 0, 0, 0);
@@ -471,238 +450,30 @@ void setupGLUT(int argc, char* argv[])
 	}
 }
 
-void processLight(Scene* scene, Vector& L, Color& lightColor, Color& color, Material* material, Ray& ray, Vector& precise_hit_point, Vector& normal) {
-	Object* object = NULL;
-	float closest_t = FLT_MAX;
-	bool in_shadow = false;
-
-	if (L * normal > 0) {
-		Ray shadowRay = Ray(precise_hit_point, L);
-		double size;
-		switch (USE_ACCEL_STRUCT){
-		case 0:
-			for (int i = 0; i < scene->getNumObjects(); i++) {
-				object = scene->getObject(i);
-				if (object->intercepts(shadowRay, closest_t)) {
-					in_shadow = true;
-					break;
-				}
-			}
-			break;
-		case 1:
-			if (grid.Traverse(shadowRay)) {
-				in_shadow = true;
-			}
-			break;
-		case 2:
-			if (bvh.Traverse(shadowRay)) {
-				in_shadow = true;
-			}
-			break;
-		default:
-		for (int i = 0; i < scene->getNumObjects(); i++) {
-			object = scene->getObject(i);
-			if (object->intercepts(shadowRay, closest_t)) {
-				in_shadow = true;
-				break;
-			}
-		}
-		break;
-	}
-	}
-	
-	if (!in_shadow) {
-		L = L.normalize();
-		Vector V = ((L + (ray.direction * -1)).normalize());
-		float VdotN = V * normal;
-
-		float max1 = std::max(0.0f, normal * L);
-		float max2 = std::max(0.0f, VdotN);
-
-		Color diff = (lightColor * material->GetDiffColor()) * max1;
-		Color spec = (lightColor * material->GetSpecColor()) * pow(max2, material->GetShine());
-
-		color += (diff * material->GetDiffuse()) + (spec * material->GetSpecular());
-	}
-}
 
 /////////////////////////////////////////////////////YOUR CODE HERE///////////////////////////////////////////////////////////////////////////////////////
 
 Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medium 1 where the ray is travelling
 {
-	int numberObjects = scene->getNumObjects();
-	float closest_t = FLT_MAX; // Find the closest intersection point
-	Object* closest_object = NULL;
-	//Plane* plane = NULL;
+	Vector origin = ray.origin;
+	Vector direction =  ray.direction;
 
-	Vector hit;
-
-	Color color(0.0f, 0.0f, 0.0f);
-
-	switch (USE_ACCEL_STRUCT) {
-		case 0:
-			for (int i = 0; i < numberObjects; i++) {
-				Object* object = scene->getObject(i);
-				//plane = dynamic_cast<Plane*>(object);
-				float t;
-				if (object->intercepts(ray, t) && t < closest_t) {
-					closest_t = t;
-					closest_object = object;
-				}
-			}
-			if (closest_object != NULL) {
-				hit = ray.origin + ray.direction * closest_t;
-				break;
-			}
-			break;
-		case 1:
-			if (!grid.Traverse(ray, &closest_object, hit)) {
-				closest_object = NULL;
-			
-			}
-			break;
-
-		case 2:
-			if (!bvh.Traverse(ray, &closest_object, hit)) {
-				closest_object = NULL;
-			}
-			break;
-		default:
-			for (int i = 0; i < numberObjects; i++) {
-				Object* object = scene->getObject(i);
-				//plane = dynamic_cast<Plane*>(object);
-				float t;
-				if (object->intercepts(ray, t) && t < closest_t) {
-					closest_t = t;
-					closest_object = object;
-				}
-			}
-			
-			break;	
-	}
-
-
-	if (!closest_object) { //if there is no interception return background
-		if (scene->GetSkyBoxFlg()) {
-			return scene->GetSkyboxColor(ray);
-		}
-		else {
-			return scene->GetBackgroundColor();
-		}
-	}
-		
-	// Compute hit point and normal
-	Vector hit_point = ray.origin + ray.direction * closest_t;
-	Vector normal = closest_object->getNormal(hit_point).normalize(); //adicionei agr 19/04
-	Vector precise_hit_point = hit_point + normal * 0.001f;
-	normal = closest_object->getNormal(precise_hit_point).normalize();
-	Vector V = ray.direction * (-1);//scene->GetCamera()->GetEye() - hit_point;
-
-	// Compute lighting
-	for (int i = 0; i < scene->getNumLights(); ++i) {
-		Light* light = scene->getLight(i);
-		Vector L = (light->position - hit_point).normalize();
-
-		processLight(scene, L, light->color, color, closest_object->GetMaterial(), ray, precise_hit_point, normal);
+	Scene scene;
 	
+	if scene->getNumObjects() == 0{
+		return scene->GetBackgroundColor();
 	}
 
-	if (depth >= MAX_DEPTH) { // VERIFY
-		return color.clamp(); //changed position
-	}
+
+
 	
-	Color reflection_color(0.0f, 0.0f, 0.0f);
-	Color refraction_color(0.0f, 0.0f, 0.0f);
-
-	bool inside = false;
-	if (ray.direction * normal > 0) {
-		normal = normal * -1;
-		inside = true;
-	}
-
-	// Recursive calls for reflection and refraction
-	if (closest_object->GetMaterial()->GetReflection() > 0) {
-		Vector V = ray.direction;
-		Vector reflection_direction = ray.direction - (normal * (ray.direction * normal) * 2);
-		reflection_direction.normalize();
-		Ray reflection_ray(precise_hit_point, reflection_direction); //de onde vem o epsilon
-		reflection_color = rayTracing(reflection_ray, depth + 1, 1.0f); //here should be ior_1 or 1.0f dont know
-	}
-
-	float KR;
-
-	if (closest_object->GetMaterial()->GetTransmittance() > 0) {
-		float R0 = 1.0f;
-		float R1 = 1.0f;
-		Vector viewnormal = (normal * (normal * V));
-		Vector viewtangent = viewnormal - V;
-		float n;
-		if (inside) {
-			n = ior_1;
-		}
-		else {
-			n = ior_1 / closest_object->GetMaterial()->GetRefrIndex();
-		} 
-
-		float cos_theta_i = viewnormal.length();
-		float sin_theta_t = (n)*viewtangent.length();
-		float insqrt = 1 - pow(sin_theta_t, 2);
-
-		if (insqrt >= 0) {
-			float cos_theta_t = sqrt(insqrt);
-			Vector refraction_direction = viewtangent.normalize() * sin_theta_t + (normal * (cos_theta_t)).normalize();
-			Vector intersection = hit_point + refraction_direction * 0.001f;
-
-			Ray refraction_ray(intersection, refraction_direction);
-
-			float newIor = inside ? 1.0f : closest_object->GetMaterial()->GetRefrIndex();
-			refraction_color =/*+=*/ rayTracing(refraction_ray, depth + 1, newIor);
 	
-			if (SCHLICK_APPROX) {
-				float rI = pow((ior_1 - newIor) / (ior_1 + newIor), 2);
-				KR = rI + (1 - rI) * pow(1 - cos_theta_i, 5);
-			}
-			else {
-				R0 = pow(fabs((ior_1 * cos_theta_i - newIor * cos_theta_t) / (ior_1 * cos_theta_i + newIor * cos_theta_t)), 2);
-				R1 = pow(fabs((ior_1 * cos_theta_t - newIor * cos_theta_i) / (ior_1 * cos_theta_i + newIor * cos_theta_t)), 2);
-			}
 
-		}
 
-		if (!SCHLICK_APPROX || insqrt < 0) {
-			KR = 1 / 2 * (R0 + R1);
-		}
-	}
-	else {
-		KR = closest_object->GetMaterial()->GetSpecular();
-	}
-
-	color += reflection_color * KR * closest_object->GetMaterial()->GetSpecColor() + refraction_color * (1 - KR);
-	return color.clamp();
+	return Color(0.0f, 0.0f, 0.0f);
 }
 
-Color getColorAux(Ray ray, float x, float y, int index, Color color) {
-	Vector pixel;  //viewport coordinates
-	pixel.x = x + 0.5f;
-	pixel.y = y + 0.5f;
-	// compute primaryRay 
-	ray = scene->GetCamera()->PrimaryRay(pixel);
-	color = color + rayTracing(ray, 1, 1.0);
-	return color;
-}
 
-Color jittering(Ray ray, Vector pixel) {
-	Color color = Color(0.0f, 0.0f, 0.0f);
-	int count = 0;
-	for (int i = 0; i < SAMPLES; i++) {
-		for (int j = 0; j < SAMPLES; j++) {
-			float randomFactor = ((float)rand() / RAND_MAX);
-			color = getColorAux(ray, pixel.x + (i + randomFactor) / SAMPLES, pixel.y + (j + randomFactor) / SAMPLES, count, color);
-			count++;
-		}
-	}
-	return Color(color.r() / count, color.g() / count, color.b() / count);
-}
 
 // Render function by primary ray casting from the eye towards the scene's objects
 
@@ -717,26 +488,6 @@ void renderScene()
 		scene->GetCamera()->SetEye(Vector(camX, camY, camZ));  //Camera motion
 	}
 
-	if (USE_ACCEL_STRUCT == 1) {
-		grid = Grid();
-
-		vector<Object*> objs;
-
-		for (int i = 0; i < scene->getNumObjects(); i++) {
-			objs.push_back(scene->getObject(i));
-		}
-		grid.Build(objs);
-	}
-	else if (USE_ACCEL_STRUCT == 2) {
-		bvh = BVH();
-		vector<Object*> objs;
-
-		for (int i = 0; i < scene->getNumObjects(); i++) {
-			objs.push_back(scene->getObject(i));
-		}
-		bvh.Build(objs);
-	}
-
 	for (int y = 0; y < RES_Y; y++)
 	{
 		for (int x = 0; x < RES_X; x++)
@@ -747,23 +498,26 @@ void renderScene()
 			pixel.x = x + 0.5f;
 			pixel.y = y + 0.5f;
 
+			/*YOUR 2 FUNTIONS:
 			Ray ray = scene->GetCamera()->PrimaryRay(pixel);   //function from camera.h
 
 			color = rayTracing(ray, 1, 1.0).clamp();
+			*/
 
-			img_Data[counter++] = u8fromfloat(static_cast<float>(color.r()));
-			img_Data[counter++] = u8fromfloat(static_cast<float>(color.g()));
-			img_Data[counter++] = u8fromfloat(static_cast<float>(color.b()));
+			color = scene->GetBackgroundColor(); //TO CHANGE - just for the template
+
+			img_Data[counter++] = u8fromfloat((float)color.r());
+			img_Data[counter++] = u8fromfloat((float)color.g());
+			img_Data[counter++] = u8fromfloat((float)color.b());
 
 			if (drawModeEnabled) {
-				// Store vertex positions for drawing in drawPoints
-				vertices[index_pos++] = static_cast<float>(x);
-				vertices[index_pos++] = static_cast<float>(y);
+				vertices[index_pos++] = (float)x;
+				vertices[index_pos++] = (float)y;
+				colors[index_col++] = (float)color.r();
 
-				// Store color components for drawing in drawPoints
-				colors[index_col++] = static_cast<float>(color.r());
-				colors[index_col++] = static_cast<float>(color.g());
-				colors[index_col++] = static_cast<float>(color.b());
+				colors[index_col++] = (float)color.g();
+
+				colors[index_col++] = (float)color.b();
 			}
 		}
 
@@ -830,8 +584,8 @@ void init_scene(void)
 	if (P3F_scene) {  //Loading a P3F scene
 
 		while (true) {
-			std::cout << "Input the Scene Name: ";
-			std::cin >> input_user;
+			cout << "Input the Scene Name: ";
+			cin >> input_user;
 			strcpy_s(scene_name, sizeof(scene_name), scenes_dir);
 			strcat_s(scene_name, sizeof(scene_name), input_user);
 
@@ -918,7 +672,7 @@ int main(int argc, char* argv[])
 			auto passedTime = std::chrono::duration<double, std::milli>(timeEnd - timeStart).count();
 			printf("\nDone: %.2f (sec)\n", passedTime / 1000);
 			if (!P3F_scene) break;
-			std::cout << "\nPress 'y' to render another image or another key to terminate!\n";
+			cout << "\nPress 'y' to render another image or another key to terminate!\n";
 			delete(scene);
 			free(img_Data);
 			ch = _getch();
