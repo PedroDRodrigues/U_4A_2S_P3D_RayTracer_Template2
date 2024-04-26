@@ -40,6 +40,8 @@ Vector Triangle::getNormal(Vector point)
 
 bool Triangle::intercepts(Ray& r, float& t ) {
 
+	/* BOTH IMPL COULD BE CORRECT 
+	
 	Vector e1 = points[1] - points[0];
 	Vector e2 = points[2] - points[0];
 	Vector h = r.direction % e2;
@@ -63,7 +65,41 @@ bool Triangle::intercepts(Ray& r, float& t ) {
 
 	t = f * (e2 * q);
 
-	return t > EPSILON;
+	return t > EPSILON;*/
+
+	Vector e1 = points[1] - points[0];
+	Vector e2 = points[2] - points[0];
+	Vector e1e2 = e1 % e2;
+	float area = e1e2.length();
+
+	float a = e1e2 * r.direction;
+	if (fabs(a) < EPSILON) return false;
+
+	float b = e1e2 * points[0] * (-1);
+	float c = e1e2 * r.origin * (-1) + b;
+
+	t = c / a;
+	if (t < 0) return false;
+
+	Vector P = r.origin + r.direction * t;
+
+	Vector C;
+	Vector edge = points[1] - points[0];
+	Vector vp = P - points[0];
+	C = edge % vp;
+	if (normal * C < 0) return false;
+
+	edge = points[2] - points[1];
+	vp = P - points[1];
+	C = edge % vp;
+	if (normal * C < 0) return false;
+
+	edge = points[0] - points[2];
+	vp = P - points[2];
+	C = edge % vp;
+	if (normal * C < 0) return false;
+
+	return true;
 }
 
 Plane::Plane(Vector& a_PN, float a_D)
@@ -100,7 +136,7 @@ Plane::Plane(Vector& P0, Vector& P1, Vector& P2)
 
 bool Plane::intercepts(Ray & r, float& t)
 {
-	// Calculate the denominator
+	/*// Calculate the denominator
 	float denominator = PN *  r.direction;
 
 	// Check if the denominator is close to zero
@@ -120,7 +156,16 @@ bool Plane::intercepts(Ray & r, float& t)
 
 	// Intersection point is valid, assign t and return true
 	t = taux;
-	return true;
+	return true;*/
+
+	float denominator = PN * r.direction;
+	if (denominator > 1e-6) {
+		Vector p0l0 = P - r.origin;
+		t = (p0l0 * PN) / denominator;
+		return (t >= 0);
+	}
+
+	return false;
 }
 
 Vector Plane::getNormal(Vector point) 
@@ -130,40 +175,8 @@ Vector Plane::getNormal(Vector point)
 
 bool Sphere::intercepts(Ray& r, float& t )
 {
-	/* bool intersect(const Ray &ray) const
-{
-        float t0, t1; // solutions for t if the ray intersects
-#if 0
-        // Geometric solution
-        Vec3f L = center - ray.orig;
-        float tca = L.dotProduct(ray.dir);
-        // if (tca < 0) return false;
-        float d2 = L.dotProduct(L) - tca * tca;
-        if (d2 > radius * radius) return false;
-        float thc = sqrt(radius * radius - d2);
-        t0 = tca - thc;
-        t1 = tca + thc;
-#else
-        // Analytic solution
-        Vec3f L = ray.orig - center;
-        float a = ray.dir.dotProduct(ray.dir);
-        float b = 2 * ray.dir.dotProduct(L);
-        float c = L.dotProduct(L) - radius * radius;
-        if (!solveQuadratic(a, b, c, t0, t1)) return false;
-#endif
-        if (t0 > t1) std::swap(t0, t1);
-
-        if (t0 < 0) {
-            t0 = t1; // If t0 is negative, let's use t1 instead.
-            if (t0 < 0) return false; // Both t0 and t1 are negative.
-        }
-
-        t = t0;
-
-        return true;
-} */ 
-
-	Vector L = center - r.origin;
+	/* IMP 1 */
+	/*Vector L = center - r.origin;
 	float tca = L * r.direction;
 	float d2 = L * L - tca * tca;
 	float radius2 = radius * radius;
@@ -178,7 +191,32 @@ bool Sphere::intercepts(Ray& r, float& t )
 	else if (tca + thc > EPSILON) {
 		t = tca + thc;
 		return true;
+	}*/
+
+	/* IMP 2 */
+	Vector L = r.origin - center;
+	float a = r.direction * r.direction;
+	float b = r.direction * L * 2.0f;
+	float c = L * L - radius * radius;
+	float delta = b * b - 4 * a * c;
+
+	if (delta < 0) return false;
+
+	float t0 = (-b - sqrt(delta)) / (2 * a);
+	float t1 = (-b + sqrt(delta)) / (2 * a);
+
+	if (t0 > t1) std::swap(t0, t1);
+
+	if (t0 < 0) {
+		t0 = t1;
+		if (t0 < 0) return false;
 	}
+
+	t = t0;
+
+	return true;
+
+	/* BOTH IMPLEMENTATIONS WORK IN THE SAME WAY - ONE IS GEOMETRIC IMP 1 AND OTHER IS ANALYTIC IMP 2*/
 }
 
 

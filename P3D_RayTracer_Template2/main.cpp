@@ -520,12 +520,12 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 	}
 
 	if (!closest_object) { //if there is no interception return background
-		if (scene->GetSkyBoxFlg()) {
-			return scene->GetSkyboxColor(ray);
-		}
-		else {
+		//if (scene->GetSkyBoxFlg()) {
+			//return scene->GetSkyboxColor(ray);
+		//}
+		//else {
 			return scene->GetBackgroundColor();
-		}
+		//}
 	}
 		
 	// Compute hit point and normal
@@ -563,7 +563,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 		Vector reflection_direction = ray.direction - (normal * (ray.direction * normal) * 2);
 		reflection_direction.normalize();
 		Ray reflection_ray(precise_hit_point, reflection_direction); //de onde vem o epsilon
-		reflection_color = rayTracing(reflection_ray, depth + 1, /*1.0f*/ior_1); //here should be ior from closest object not original? //closest_object->GetMaterial()->GetRefrIndex() ON LAST ARGUMENT
+		reflection_color = rayTracing(reflection_ray, depth + 1, 1.0f); //here should be ior_1 or 1.0f dont know
 	}
 
 	float KR;
