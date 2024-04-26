@@ -44,11 +44,14 @@ bool P3F_scene = true; //choose between P3F scene or a built-in random scene
 // area 3: very light, alternate version
 // area is the correct definitive version
 // 0/1/2: off/random/area	(/area2/area3)
-#define SOFT_SHADOWS 0
 // 0/1/2: off/no_pow/pow
 #define REFLECTION_MODE 0
 #define SAMPLES 3
 #define REFLECTION_SAMPLES 2
+
+bool ANTI_ALIASING = false;
+bool SOFT_SHADOW = false;
+bool DEPTH_OF_FIELD = false;
 
 unsigned int FrameCount = 0;
 
@@ -103,7 +106,9 @@ int WindowHandle = 0;
 
 bool SCHLICK_APPROX = false;
 
-int USE_ACCEL_STRUCT = 2;
+int USE_ACCEL_STRUCT = 0; // dont use 2 yet (BVH) 1 (GRID) 0 (NONE)
+
+int offset_for_sahdowx, offset_for_shadowy;
 
 /////////////////////////////////////////////////////////////////////// ERRORS
 
@@ -544,7 +549,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 			for (int i = 0; i < numberObjects; i++) {
 				Object* object = scene->getObject(i);
 				//plane = dynamic_cast<Plane*>(object);
-				float t;
+				float t = FLT_MAX;
 				if (object->intercepts(ray, t) && t < closest_t) {
 					closest_t = t;
 					closest_object = object;
@@ -552,7 +557,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 			}
 			if (closest_object != NULL) {
 				hit = ray.origin + ray.direction * closest_t;
-				break;
+				
 			}
 			break;
 		case 1:
@@ -571,7 +576,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 			for (int i = 0; i < numberObjects; i++) {
 				Object* object = scene->getObject(i);
 				//plane = dynamic_cast<Plane*>(object);
-				float t;
+				float t = FLT_MAX;
 				if (object->intercepts(ray, t) && t < closest_t) {
 					closest_t = t;
 					closest_object = object;
@@ -580,6 +585,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 			
 			break;	
 	}
+
 
 
 	if (!closest_object) { //if there is no interception return background
@@ -598,13 +604,44 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 	normal = closest_object->getNormal(precise_hit_point).normalize();
 	Vector V = ray.direction * (-1);//scene->GetCamera()->GetEye() - hit_point;
 
+	
+	
 	// Compute lighting
 	for (int i = 0; i < scene->getNumLights(); ++i) {
 		Light* light = scene->getLight(i);
 		Vector L = (light->position - hit_point).normalize();
+		Vector position;
 
-		processLight(scene, L, light->color, color, closest_object->GetMaterial(), ray, precise_hit_point, normal);
-	
+		if (SOFT_SHADOW) {
+			float shadow = 0.5f;
+
+			if (ANTI_ALIASING) {
+				position = Vector(light->position.x + shadow * ((offset_for_sahdowx + rand_float()) / 4), light->position.y + shadow * ((offset_for_shadowy + rand_float()) / 4), light->position.z);
+				Vector L = (position - hit_point);
+				processLight(scene, L, light->color, color, closest_object->GetMaterial(), ray, precise_hit_point, normal);
+				
+			}
+			else {
+				float distance = shadow / 4;
+				float cur_x = light->position.x - shadow * 4;
+				float cur_y = light->position.y - shadow * 4;
+
+				for (int i = 0; i < 4; i++) {
+					for (int j = 0; j < 4; j++) {
+						position = Vector(cur_x, cur_y, light->position.z);
+						Vector L = (position - hit_point);
+						processLight(scene, L, light->color, color, closest_object->GetMaterial(), ray, precise_hit_point, normal);
+						cur_x += distance;
+					}
+					cur_y += distance;
+					cur_x = light->position.x - distance * shadow * 4;
+				}
+			}
+		}
+		else {
+			Vector L = (light->position - hit_point);
+			processLight(scene, L, light->color, color, closest_object->GetMaterial(), ray, precise_hit_point, normal);
+		}
 	}
 
 	if (depth >= MAX_DEPTH) { // VERIFY
@@ -704,6 +741,14 @@ Color jittering(Ray ray, Vector pixel) {
 	return Color(color.r() / count, color.g() / count, color.b() / count);
 }
 
+Vector sample_unit_disk(void) {
+	Vector p;
+	do {
+		p = Vector(rand_float(), rand_float(), 0.0) * 2 - Vector(1.0, 1.0, 0.0);
+	} while (p * p >= 1.0);
+	return p;
+}
+
 // Render function by primary ray casting from the eye towards the scene's objects
 
 void renderScene()
@@ -744,12 +789,57 @@ void renderScene()
 			Color color;
 
 			Vector pixel;  //viewport coordinates
-			pixel.x = x + 0.5f;
-			pixel.y = y + 0.5f;
 
-			Ray ray = scene->GetCamera()->PrimaryRay(pixel);   //function from camera.h
+			if (!ANTI_ALIASING) {
+				pixel.x = x + 0.5f;
+				pixel.y = y + 0.5f;
 
-			color = rayTracing(ray, 1, 1.0).clamp();
+				Ray* ray = nullptr;
+
+				if (DEPTH_OF_FIELD) {
+					Vector cameralens;
+					float aperture = scene->GetCamera()->GetAperture();
+					cameralens = sample_unit_disk() * aperture;
+
+					ray = &scene->GetCamera()->PrimaryRay(cameralens, pixel);
+
+				}
+				else {
+					ray = &scene->GetCamera()->PrimaryRay(pixel);
+				}
+				color = rayTracing(*ray, 1, 1.0).clamp();
+			}
+			else {
+				for (int i = 0; i < 4; i++) {
+					for (int j = 0; j < 4; j++) {
+						offset_for_sahdowx = i;
+						offset_for_shadowy = j;
+						pixel.x = x + (i + rand_float()) / 4;
+						pixel.y = y + (j + rand_float()) / 4;
+
+						Ray* ray = nullptr;
+
+						if (DEPTH_OF_FIELD) {
+							Vector cameralens;
+							float aperture = scene->GetCamera()->GetAperture();
+							cameralens = sample_unit_disk() * aperture;
+							ray = &scene->GetCamera()->PrimaryRay(cameralens, pixel);
+						}
+						else {
+							ray = &scene->GetCamera()->PrimaryRay(pixel);
+						}
+
+						color += color + rayTracing(*ray, 1, 1.0);
+					}
+				}	
+				
+			//	color = color / (4 * 4); TODO wtf porque e que nao me deixa dividir por 16
+			}
+		
+		
+
+
+	
 
 			img_Data[counter++] = u8fromfloat(static_cast<float>(color.r()));
 			img_Data[counter++] = u8fromfloat(static_cast<float>(color.g()));
