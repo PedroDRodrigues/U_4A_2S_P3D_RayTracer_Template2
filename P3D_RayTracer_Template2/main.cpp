@@ -29,7 +29,7 @@ using namespace std;
 //Enable OpenGL drawing.  
 bool drawModeEnabled = true;
 
-bool P3F_scene = true; //choose between P3F scene or a built-in random scene
+bool P3F_scene = false; //choose between P3F scene or a built-in random scene
 
 #define MAX_DEPTH 4  //number of bounces
 
@@ -527,7 +527,7 @@ void processLight(Scene* scene, Vector& L, Color& lightColor, Color& color, Mate
 		Color diff = (lightColor * material->GetDiffColor()) * max1;
 		Color spec = (lightColor * material->GetSpecColor()) * pow(max2, material->GetShine());
 
-		color += (diff * material->GetDiffuse()) + (spec * material->GetSpecular());
+		color += (diff * material->GetDiffuse()) + (spec * material->GetSpecular() * 0.4);
 	}
 }
 
@@ -618,7 +618,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 			if (ANTI_ALIASING) {
 				position = Vector(light->position.x + shadow * ((offset_for_sahdowx + rand_float()) / 4), light->position.y + shadow * ((offset_for_shadowy + rand_float()) / 4), light->position.z);
 				Vector L = (position - hit_point);
-				processLight(scene, L, light->color, color, closest_object->GetMaterial(), ray, precise_hit_point, normal);
+				processLight(scene, L, light->color , color, closest_object->GetMaterial(), ray, precise_hit_point, normal);
 				
 			}
 			else {
@@ -640,7 +640,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 		}
 		else {
 			Vector L = (light->position - hit_point);
-			processLight(scene, L, light->color, color, closest_object->GetMaterial(), ray, precise_hit_point, normal);
+			processLight(scene, L, light->color , color, closest_object->GetMaterial(), ray, precise_hit_point, normal);
 		}
 	}
 
@@ -658,7 +658,8 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 	}
 
 	// Recursive calls for reflection and refraction
-	if (closest_object->GetMaterial()->GetReflection() > 0) {
+	if (closest_object->GetMaterial()->GetReflection() > 0 && depth < MAX_DEPTH) {
+		
 		Vector V = ray.direction;
 		Vector reflection_direction = ray.direction - (normal * (ray.direction * normal) * 2);
 		reflection_direction.normalize();
@@ -669,6 +670,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 	float KR;
 
 	if (closest_object->GetMaterial()->GetTransmittance() > 0) {
+		
 		float R0 = 1.0f;
 		float R1 = 1.0f;
 		Vector viewnormal = (normal * (normal * V));
@@ -711,11 +713,12 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 		}
 	}
 	else {
-		KR = closest_object->GetMaterial()->GetSpecular();
+		
+		KR = closest_object->GetMaterial()->GetSpecular() * 0.4;
 	}
 
-	color += reflection_color * KR * closest_object->GetMaterial()->GetSpecColor() + refraction_color * (1 - KR);
-	return color.clamp();
+	// color += reflection_color * KR * closest_object->GetMaterial()->GetSpecColor() + refraction_color * (1 - KR);
+	return color;
 }
 
 Color getColorAux(Ray ray, float x, float y, int index, Color color) {
