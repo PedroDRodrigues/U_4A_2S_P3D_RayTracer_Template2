@@ -29,7 +29,7 @@ using namespace std;
 //Enable OpenGL drawing.  
 bool drawModeEnabled = true;
 
-bool P3F_scene = false; //choose between P3F scene or a built-in random scene
+bool P3F_scene = true; //choose between P3F scene or a built-in random scene
 
 #define MAX_DEPTH 4  //number of bounces
 
@@ -46,12 +46,13 @@ bool P3F_scene = false; //choose between P3F scene or a built-in random scene
 // 0/1/2: off/random/area	(/area2/area3)
 // 0/1/2: off/no_pow/pow
 #define REFLECTION_MODE 0
-#define SAMPLES 3
 #define REFLECTION_SAMPLES 2
+#define SAMPLES 4
 
 bool ANTI_ALIASING = false;
 bool SOFT_SHADOW = false;
 bool DEPTH_OF_FIELD = false;
+bool FUZZY_REFLECTION = false;
 
 unsigned int FrameCount = 0;
 
@@ -108,7 +109,7 @@ bool SCHLICK_APPROX = false;
 
 int USE_ACCEL_STRUCT = 0; // dont use 2 yet (BVH) 1 (GRID) 0 (NONE)
 
-int offset_for_sahdowx, offset_for_shadowy;
+int offset_for_shadowx, offset_for_shadowy;
 
 /////////////////////////////////////////////////////////////////////// ERRORS
 
@@ -589,17 +590,17 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 
 
 	if (!closest_object) { //if there is no interception return background
-		if (scene->GetSkyBoxFlg()) {
-			return scene->GetSkyboxColor(ray);
-		}
-		else {
+		//if (scene->GetSkyBoxFlg()) {
+			//return scene->GetSkyboxColor(ray);
+		//}
+		//else {
 			return scene->GetBackgroundColor();
-		}
+		//}
 	}
 		
 	// Compute hit point and normal
 	Vector hit_point = ray.origin + ray.direction * closest_t;
-	Vector normal = closest_object->getNormal(hit_point).normalize(); //adicionei agr 19/04
+	Vector normal = closest_object->getNormal(hit_point).normalize();
 	Vector precise_hit_point = hit_point + normal * 0.001f;
 	normal = closest_object->getNormal(precise_hit_point).normalize();
 	Vector V = ray.direction * (-1);//scene->GetCamera()->GetEye() - hit_point;
@@ -616,7 +617,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 			float shadow = 0.5f;
 
 			if (ANTI_ALIASING) {
-				position = Vector(light->position.x + shadow * ((offset_for_sahdowx + rand_float()) / 4), light->position.y + shadow * ((offset_for_shadowy + rand_float()) / 4), light->position.z);
+				position = Vector(light->position.x + shadow * ((offset_for_shadowx + rand_float()) / SAMPLES), light->position.y + shadow * ((offset_for_shadowy + rand_float()) / SAMPLES), light->position.z);
 				Vector L = (position - hit_point);
 				processLight(scene, L, light->color , color, closest_object->GetMaterial(), ray, precise_hit_point, normal);
 				
@@ -662,14 +663,29 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 		
 		Vector V = ray.direction;
 		Vector reflection_direction = ray.direction - (normal * (ray.direction * normal) * 2);
-		reflection_direction.normalize();
+		
+		if (FUZZY_REFLECTION) {
+			Vector sphere_center = reflection_direction + precise_hit_point;
+			Vector sphere_offset = sphere_center + rnd_unit_sphere() * 0.3f; //ROUGHNESS
+			Vector fuzzy_reflection = sphere_offset - precise_hit_point;
+			fuzzy_reflection.normalize();
+			
+			if (fuzzy_reflection * normal > 0) {
+				reflection_direction = fuzzy_reflection;
+			}
+
+		} else {
+			reflection_direction.normalize();
+		}
+
+
 		Ray reflection_ray(precise_hit_point, reflection_direction); //de onde vem o epsilon
-		reflection_color = rayTracing(reflection_ray, depth + 1, 1.0f); //here should be ior_1 or 1.0f dont know
+		reflection_color = rayTracing(reflection_ray, depth + 1, ior_1); //here should be ior_1 or 1.0f dont know
 	}
 
 	float KR;
 
-	if (closest_object->GetMaterial()->GetTransmittance() > 0) {
+	if (closest_object->GetMaterial()->GetTransmittance() != 0) {
 		
 		float R0 = 1.0f;
 		float R1 = 1.0f;
@@ -714,42 +730,11 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 	}
 	else {
 		
-		KR = closest_object->GetMaterial()->GetSpecular() * 0.4;
+		KR = closest_object->GetMaterial()->GetSpecular();
 	}
 
-	// color += reflection_color * KR * closest_object->GetMaterial()->GetSpecColor() + refraction_color * (1 - KR);
+	color += reflection_color * KR * closest_object->GetMaterial()->GetSpecColor() + refraction_color * (1 - KR);
 	return color;
-}
-
-Color getColorAux(Ray ray, float x, float y, int index, Color color) {
-	Vector pixel;  //viewport coordinates
-	pixel.x = x + 0.5f;
-	pixel.y = y + 0.5f;
-	// compute primaryRay 
-	ray = scene->GetCamera()->PrimaryRay(pixel);
-	color = color + rayTracing(ray, 1, 1.0);
-	return color;
-}
-
-Color jittering(Ray ray, Vector pixel) {
-	Color color = Color(0.0f, 0.0f, 0.0f);
-	int count = 0;
-	for (int i = 0; i < SAMPLES; i++) {
-		for (int j = 0; j < SAMPLES; j++) {
-			float randomFactor = ((float)rand() / RAND_MAX);
-			color = getColorAux(ray, pixel.x + (i + randomFactor) / SAMPLES, pixel.y + (j + randomFactor) / SAMPLES, count, color);
-			count++;
-		}
-	}
-	return Color(color.r() / count, color.g() / count, color.b() / count);
-}
-
-Vector sample_unit_disk(void) {
-	Vector p;
-	do {
-		p = Vector(rand_float(), rand_float(), 0.0) * 2 - Vector(1.0, 1.0, 0.0);
-	} while (p * p >= 1.0);
-	return p;
 }
 
 // Render function by primary ray casting from the eye towards the scene's objects
@@ -797,35 +782,35 @@ void renderScene()
 				pixel.x = x + 0.5f;
 				pixel.y = y + 0.5f;
 
-				Ray* ray = nullptr;
+				Ray ray(Vector(0.0f, 0.0f, 0.0f), Vector(0.0f, 0.0f, 0.0f));
 
 				if (DEPTH_OF_FIELD) {
 					Vector cameralens;
 					float aperture = scene->GetCamera()->GetAperture();
-					cameralens = sample_unit_disk() * aperture;
+					cameralens = rnd_unit_disk() * aperture;
 
-					ray = &scene->GetCamera()->PrimaryRay(cameralens, pixel);
+					ray = scene->GetCamera()->PrimaryRay(cameralens, pixel);
 
 				}
 				else {
-					ray = &scene->GetCamera()->PrimaryRay(pixel);
+					ray = scene->GetCamera()->PrimaryRay(pixel);
 				}
-				color = rayTracing(*ray, 1, 1.0).clamp();
+				color = rayTracing(ray, 1, 1.0).clamp();
 			}
-			else {
-				for (int i = 0; i < 4; i++) {
-					for (int j = 0; j < 4; j++) {
-						offset_for_sahdowx = i;
+			else { // This is jittering !! identifica cada coisa ou depois ngm sabe do que aqui vai
+				for (int i = 0; i < SAMPLES; i++) {
+					for (int j = 0; j < SAMPLES; j++) {
+						offset_for_shadowx = i;
 						offset_for_shadowy = j;
-						pixel.x = x + (i + rand_float()) / 4;
-						pixel.y = y + (j + rand_float()) / 4;
+						pixel.x = x + (i + rand_float()) / SAMPLES;
+						pixel.y = y + (j + rand_float()) / SAMPLES;
 
 						Ray* ray = nullptr;
 
 						if (DEPTH_OF_FIELD) {
 							Vector cameralens;
 							float aperture = scene->GetCamera()->GetAperture();
-							cameralens = sample_unit_disk() * aperture;
+							cameralens = rnd_unit_disk() * aperture;
 							ray = &scene->GetCamera()->PrimaryRay(cameralens, pixel);
 						}
 						else {
@@ -836,13 +821,9 @@ void renderScene()
 					}
 				}	
 				
-			//	color = color / (4 * 4); TODO wtf porque e que nao me deixa dividir por 16
+				float denominator_aux = static_cast<float>(SAMPLES * SAMPLES);
+				color = color / denominator_aux;
 			}
-		
-		
-
-
-	
 
 			img_Data[counter++] = u8fromfloat(static_cast<float>(color.r()));
 			img_Data[counter++] = u8fromfloat(static_cast<float>(color.g()));
