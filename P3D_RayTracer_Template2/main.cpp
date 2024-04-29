@@ -52,7 +52,7 @@ bool P3F_scene = true; //choose between P3F scene or a built-in random scene
 bool ANTI_ALIASING = false;
 bool SOFT_SHADOW = false;
 bool DEPTH_OF_FIELD = false;
-bool FUZZY_REFLECTION = false;
+bool FUZZY_REFLECTION = true;
 
 unsigned int FrameCount = 0;
 
@@ -685,7 +685,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 
 	float KR;
 
-	if (closest_object->GetMaterial()->GetTransmittance() != 0) {
+	if (closest_object->GetMaterial()->GetTransmittance() != 0) { //if == 1 fresnel equation
 		
 		float R0 = 1.0f;
 		float R1 = 1.0f;

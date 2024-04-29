@@ -123,10 +123,7 @@ Plane::Plane(Vector& P0, Vector& P1, Vector& P2)
    else
    {
      PN.normalize();
-	 //Calculate D
-	 //P0 *= -1;
-     //D  = PN*(P0);
-	 D = PN * P; // NOT SURE ABOUT IT
+	 D = PN * P0 * (-1); 
    }
 }
 
@@ -157,15 +154,6 @@ bool Plane::intercepts(Ray & r, float& t)
 	// Intersection point is valid, assign t and return true
 	t = taux;
 	return true;
-
-	/*float denominator = PN * r.direction;
-	if (denominator > 1e-6) {
-		Vector p0l0 = P - r.origin;
-		t = (p0l0 * PN) / denominator;
-		return (t >= 0);
-	}
-
-	return false;*/ // TITO ISTO ESTA ERRADO JA FIZ DE ACORDO COM OS SLIDES TO STOR
 }
 
 Vector Plane::getNormal(Vector point) 
