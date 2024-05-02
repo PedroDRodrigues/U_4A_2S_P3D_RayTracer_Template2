@@ -12,12 +12,27 @@ Triangle::Triangle(Vector& P0, Vector& P1, Vector& P2)
 	points[0] = P0; points[1] = P1; points[2] = P2;
 
 	/* Calculate the normal */
+	Vector V = P1 - P0;
+	Vector W = P2 - P0;
+
 	normal = Vector(0, 0, 0);
+	normal.x = (V.y * W.z) - (V.z * W.y);
+	normal.y = (V.z * W.x) - (V.x * W.z);
+	normal.z = (V.x * W.y) - (V.y * W.x);
+
 	normal.normalize();
 
-	//YOUR CODE to Calculate the Min and Max for bounding box
-	Min = Vector(+FLT_MAX, +FLT_MAX, +FLT_MAX);
-	Max = Vector(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+	//Calculate the Min and Max for bounding box
+	float x0 = min(min(P0.x, P1.x), P2.x);
+	float y0 = min(min(P0.y, P1.y), P2.y);
+	float z0 = min(min(P0.z, P1.z), P2.z);
+
+	float x1 = max(max(P0.x, P1.x), P2.x);
+	float y1 = max(max(P0.y, P1.y), P2.y);
+	float z1 = max(max(P0.z, P1.z), P2.z);
+
+	Min = Vector(x0, y0, z0);
+	Max = Vector(x1, y1, z1);
 
 
 	// enlarge the bounding box a bit just in case...
@@ -626,7 +641,7 @@ bool Scene::load_p3f(const char *name)
 
 	  else if (cmd == "pl")  // General Plane
 	  {
-          Vector P0, P1, P2;
+          Vector P0, P1, P2; //AQUIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
 		  Plane* plane;
 
           file >> P0 >> P1 >> P2;

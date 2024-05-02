@@ -52,7 +52,7 @@ bool P3F_scene = true; //choose between P3F scene or a built-in random scene
 bool ANTI_ALIASING = false;
 bool SOFT_SHADOW = false;
 bool DEPTH_OF_FIELD = false;
-bool FUZZY_REFLECTION = true;
+bool FUZZY_REFLECTION = false;
 
 unsigned int FrameCount = 0;
 
@@ -485,7 +485,7 @@ void processLight(Scene* scene, Vector& L, Color& lightColor, Color& color, Mate
 	if (L * normal > 0) {
 		Ray shadowRay = Ray(precise_hit_point, L);
 		double size;
-		switch (USE_ACCEL_STRUCT){
+		switch (USE_ACCEL_STRUCT) {
 		case 0:
 			for (int i = 0; i < scene->getNumObjects(); i++) {
 				object = scene->getObject(i);
@@ -496,6 +496,7 @@ void processLight(Scene* scene, Vector& L, Color& lightColor, Color& color, Mate
 			}
 			break;
 		case 1:
+			printf("tr1");
 			if (grid.Traverse(shadowRay)) {
 				in_shadow = true;
 			}
