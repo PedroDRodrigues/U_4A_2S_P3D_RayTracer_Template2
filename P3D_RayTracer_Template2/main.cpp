@@ -107,7 +107,7 @@ int WindowHandle = 0;
 
 bool SCHLICK_APPROX = false;
 
-int USE_ACCEL_STRUCT = 1; // dont use 2 yet (BVH) 1 (GRID) 0 (NONE)
+int USE_ACCEL_STRUCT = 0; // dont use 2 yet (BVH) 1 (GRID) 0 (NONE)
 
 int offset_for_shadowx, offset_for_shadowy;
 
@@ -481,7 +481,7 @@ void processLight(Scene* scene, Vector& L, Color& lightColor, Color& color, Mate
 	Object* object = NULL;
 	float closest_t = FLT_MAX;
 	bool in_shadow = false;
-
+	
 	if (L * normal > 0) {
 		Ray shadowRay = Ray(precise_hit_point, L);
 		double size;
@@ -583,8 +583,6 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 			break;	
 	}
 
-
-
 	if (!closest_object) { //if there is no interception return background
 		//if (scene->GetSkyBoxFlg()) {
 			//return scene->GetSkyboxColor(ray);
@@ -600,8 +598,6 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 	Vector precise_hit_point = hit_point + normal * EPSILON;
 	normal = closest_object->getNormal(precise_hit_point).normalize();
 	Vector V = ray.direction * (-1);//scene->GetCamera()->GetEye() - hit_point;
-
-	
 	
 	// Compute lighting
 	for (int i = 0; i < scene->getNumLights(); ++i) {
@@ -674,7 +670,6 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 			reflection_direction.normalize();
 		}
 
-
 		Ray reflection_ray(precise_hit_point, reflection_direction); //de onde vem o epsilon
 		reflection_color = rayTracing(reflection_ray, depth + 1, ior_1); //here should be ior_1 or 1.0f dont know
 	}
@@ -698,7 +693,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 		float cos_theta_i = viewnormal.length();
 		float sin_theta_t = (n)*viewtangent.length();
 		float insqrt = 1 - pow(sin_theta_t, 2);
-
+		// TENHO DE DAR PRINT DE TODOS OS REFRACTION DIRECTIONS AND REFLECTIONS DIRERCTIONS
 		if (insqrt >= 0) {
 			float cos_theta_t = sqrt(insqrt);
 			Vector refraction_direction = viewtangent.normalize() * sin_theta_t + (normal * (cos_theta_t)).normalize();
@@ -778,20 +773,20 @@ void renderScene()
 				pixel.x = x + 0.5f;
 				pixel.y = y + 0.5f;
 
-				Ray ray(Vector(0.0f, 0.0f, 0.0f), Vector(0.0f, 0.0f, 0.0f));
+				Ray* ray = nullptr;
 
 				if (DEPTH_OF_FIELD) {
 					Vector cameralens;
 					float aperture = scene->GetCamera()->GetAperture();
 					cameralens = rnd_unit_disk() * aperture;
 
-					ray = scene->GetCamera()->PrimaryRay(cameralens, pixel);
+					ray = &scene->GetCamera()->PrimaryRay(cameralens, pixel);
 
 				}
 				else {
-					ray = scene->GetCamera()->PrimaryRay(pixel);
+					ray = &scene->GetCamera()->PrimaryRay(pixel);
 				}
-				color = rayTracing(ray, 1, 1.0).clamp();
+				color = rayTracing(*ray, 1, 1.0).clamp();
 			}
 			else { // This is jittering !! identifica cada coisa ou depois ngm sabe do que aqui vai
 				for (int i = 0; i < SAMPLES; i++) {

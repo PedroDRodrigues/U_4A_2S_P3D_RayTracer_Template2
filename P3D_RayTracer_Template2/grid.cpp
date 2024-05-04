@@ -131,15 +131,21 @@ bool Grid::Init_Traverse(Ray& ray, int& ix, int& iy, int& iz, double& dtx, doubl
 		tx_max = (x0 - ox) * a;
 	}
 
+	printf("O ERRO COMEÇA NO t0 AQUI - DEPOIS O TY_MIN VAI COM INF E VAI ESTRAGRANDO TUDO\n");
+	printf("dy = %f\n", dy);
+
 	float b = 1.0 / dy;
+	printf("b = %f\n", b);
 	if (b >= 0) {
 		ty_min = (y0 - oy) * b;
 		ty_max = (y1 - oy) * b;
+		printf("AAAAAAA ty_min = %f\n", ty_min);
 	}
 	else {
 		ty_min = (y1 - oy) * b;
 		ty_max = (y0 - oy) * b;
 	}
+
 
 	float c = 1.0 / dz;
 	if (c >= 0) {
@@ -151,13 +157,19 @@ bool Grid::Init_Traverse(Ray& ray, int& ix, int& iy, int& iz, double& dtx, doubl
 		tz_max = (z0 - oz) * c;
 	}
 
-	if (tx_min > ty_min)
+	if (tx_min > ty_min) {
 		t0 = tx_min;
-	else
+		printf("t0 APPROACH 0 - %f\n", t0);
+	}
+	else {
 		t0 = ty_min;
+		printf("t0 APPROACH 1 - %f\n", t0);
+	}
 
-	if (tz_min > t0)
+	if (tz_min > t0) {
 		t0 = tz_min;
+		printf("t0 APPROACH 2 - %f\n", t0);
+	}
 
 	if (tx_max < ty_max)
 		t1 = tx_max;
@@ -170,7 +182,7 @@ bool Grid::Init_Traverse(Ray& ray, int& ix, int& iy, int& iz, double& dtx, doubl
 	if (t0 > t1 || t1 < 0)   //crossover: ray does not intersect the Grid bounding box OR leaving point is behind the ray origin
 		return(false);
 
-
+	printf("t0 - STARTER - %f\n", t0);
 	// Calculate initial cell coordinates
 		
 	if (bbox.isInside(ray.origin)) {  			// does the ray start inside the grid?
@@ -178,8 +190,13 @@ bool Grid::Init_Traverse(Ray& ray, int& ix, int& iy, int& iz, double& dtx, doubl
 		iy = clamp((oy - y0) * ny / (y1 - y0), 0, ny - 1);
 		iz = clamp((oz - z0) * nz / (z1 - z0), 0, nz - 1);
 	}
-	else {
+	else { // O ERRO ESTA AQUI - SPORTING
+		printf("tO = %f\n", t0);
 		Vector p = ray.origin + ray.direction * t0;  // initial hit point with grid's bounding box
+		printf("p.x is equal to %f\n", p.x);
+		printf("p.y is equal to %f\n", p.y);
+		printf("p.z is equal to %f\n", p.z);
+		printf("x0 = %f, y0 = %f, z0 = %f\n", x0, y0, z0);
 		ix = clamp((p.x - x0) * nx / (x1 - x0), 0, nx - 1);
 		iy = clamp((p.y - y0) * ny / (y1 - y0), 0, ny - 1);
 		iz = clamp((p.z - z0) * nz / (z1 - z0), 0, nz - 1);
@@ -330,14 +347,21 @@ bool Grid::Traverse(Ray& ray) {
 	float distance;
 
 	while (true) {
+		printf("C;\n");
+		printf("ix = %d, iy = %d, iz = %d\n", ix, iy, iz);
+		printf("nx = %d, ny = %d, nz = %d\n", nx, ny, nz);
+		printf("total: %d\n", ix + nx * iy + nx * ny * iz);
 		objs = cells[ix + nx * iy + nx * ny * iz];
+		printf("Objects size = %d\n", objs.size());
 		if (objs.size() != 0) 
+
 			//intersect Ray with all objects of each cell
+			printf("VERIFICAR POIS E - auto& obj: objs;\n");
 			for (auto &obj : objs) {
 				if (obj->intercepts(ray, distance) && distance < length) 
 					return true;
 			}
-		
+
 		if (tx_next < ty_next && tx_next < tz_next) {
 			tx_next += dtx;
 			ix += ix_step;
