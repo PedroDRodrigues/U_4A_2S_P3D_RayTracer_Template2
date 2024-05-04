@@ -55,36 +55,14 @@ Vector Triangle::getNormal(Vector point)
 
 bool Triangle::intercepts(Ray& r, float& t ) {
 
-	/* BOTH IMPL COULD BE CORRECT 
-	
-	Vector e1 = points[1] - points[0];
-	Vector e2 = points[2] - points[0];
-	Vector h = r.direction % e2;
-	float a = e1 * h;
-
-	if (a > -EPSILON && a < EPSILON)
-		return false;
-
-	float f = 1.0f / a;
-	Vector s = r.origin - points[0];
-	float u = f * (s * h);
-
-	if (u < 0.0f || u > 1.0f)
-		return false;
-
-	Vector q = s % e1;
-	float v = f * (r.direction * q);
-
-	if (v < 0.0f || u + v > 1.0f)
-		return false;
-
-	t = f * (e2 * q);
-
-	return t > EPSILON;*/
+	if (USE_MAILBOX) {
+		if (mailboxID > r.id) return false;
+		mailboxID = r.id;
+	}
 
 	Vector e1 = points[1] - points[0];
 	Vector e2 = points[2] - points[0];
-	Vector e1e2 = e1 % e2;
+	/*Vector e1e2 = e1 % e2;
 	float area = e1e2.length();
 
 	float a = e1e2 * r.direction;
@@ -114,7 +92,33 @@ bool Triangle::intercepts(Ray& r, float& t ) {
 	C = edge % vp;
 	if (normal * C < 0) return false;
 
-	return true;
+	return true;*/
+
+
+
+	Vector h = r.direction % e2;
+	float det = e1 * h;
+
+	if (det > -EPSILON && det < EPSILON) return false;
+
+	float f = 1.0 / det;
+	Vector s = r.origin - points[0];
+	float u = f * (s * h);
+
+	if (u < 0.0 || u > 1.0) return false;
+	
+	Vector q = s % e1;
+	float v = f * (r.direction * q);
+
+	if (v < 0.0 || u + v > 1.0) return false;
+
+	float t0 = f * (e2 * q);
+	if (t0 > EPSILON) {
+		t = t0;
+		return true;
+	}
+
+	return false;
 }
 
 Plane::Plane(Vector& a_PN, float a_D)
@@ -122,24 +126,24 @@ Plane::Plane(Vector& a_PN, float a_D)
 {}
 
 Plane::Plane(Vector& P0, Vector& P1, Vector& P2)
-{
-   float l;
+{	
+    float l;
 
-   //Calculate the normal plane: counter-clockwise vectorial product.
+    //Calculate the normal plane: counter-clockwise vectorial product.
 	Vector  v21 = P1 - P0;
 	Vector  v31 = P2 - P0;
 	PN = v21 % v31;
 	
 
-   if ((l=PN.length()) == 0.0)
-   {
-     cerr << "DEGENERATED PLANE!\n";
-   }
-   else
-   {
-     PN.normalize();
-	 D = PN * P0 * (-1); 
-   }
+    if ((l=PN.length()) == 0.0)
+    {
+      cerr << "DEGENERATED PLANE!\n";
+    }
+    else
+    { 
+      PN.normalize();
+	  D = PN * P0 * (-1); 
+    }
 }
 
 //
@@ -641,7 +645,7 @@ bool Scene::load_p3f(const char *name)
 
 	  else if (cmd == "pl")  // General Plane
 	  {
-          Vector P0, P1, P2; //AQUIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
+          Vector P0, P1, P2; 
 		  Plane* plane;
 
           file >> P0 >> P1 >> P2;

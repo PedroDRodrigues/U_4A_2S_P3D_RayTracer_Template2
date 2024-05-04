@@ -6,9 +6,14 @@
 class Ray
 {
 public:
-	Ray(const Vector& o, const Vector& dir ) : origin(o), direction(dir) {};
+	Ray(const Vector& o, const Vector& dir ) : origin(o), direction(dir) {
+		id = nextId++;
+	};
 
 	Vector origin;
 	Vector direction;
+
+	int id;
+	int nextId = 0;
 };
 #endif

@@ -107,7 +107,7 @@ int WindowHandle = 0;
 
 bool SCHLICK_APPROX = false;
 
-int USE_ACCEL_STRUCT = 0; // dont use 2 yet (BVH) 1 (GRID) 0 (NONE)
+int USE_ACCEL_STRUCT = 1; // dont use 2 yet (BVH) 1 (GRID) 0 (NONE)
 
 int offset_for_shadowx, offset_for_shadowy;
 
@@ -496,7 +496,6 @@ void processLight(Scene* scene, Vector& L, Color& lightColor, Color& color, Mate
 			}
 			break;
 		case 1:
-			printf("tr1");
 			if (grid.Traverse(shadowRay)) {
 				in_shadow = true;
 			}
@@ -540,8 +539,6 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 	int numberObjects = scene->getNumObjects();
 	float closest_t = FLT_MAX; // Find the closest intersection point
 	Object* closest_object = NULL;
-	//Plane* plane = NULL;
-
 	Vector hit;
 
 	Color color(0.0f, 0.0f, 0.0f);
@@ -550,7 +547,6 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 		case 0:
 			for (int i = 0; i < numberObjects; i++) {
 				Object* object = scene->getObject(i);
-				//plane = dynamic_cast<Plane*>(object);
 				float t = FLT_MAX;
 				if (object->intercepts(ray, t) && t < closest_t) {
 					closest_t = t;
@@ -576,9 +572,8 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 			break;
 		default:
 			for (int i = 0; i < numberObjects; i++) {
-				Object* object = scene->getObject(i);
-				//plane = dynamic_cast<Plane*>(object);
 				float t = FLT_MAX;
+				Object* object = scene->getObject(i);
 				if (object->intercepts(ray, t) && t < closest_t) {
 					closest_t = t;
 					closest_object = object;
@@ -602,7 +597,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 	// Compute hit point and normal
 	Vector hit_point = ray.origin + ray.direction * closest_t;
 	Vector normal = closest_object->getNormal(hit_point).normalize();
-	Vector precise_hit_point = hit_point + normal * 0.001f;
+	Vector precise_hit_point = hit_point + normal * EPSILON;
 	normal = closest_object->getNormal(precise_hit_point).normalize();
 	Vector V = ray.direction * (-1);//scene->GetCamera()->GetEye() - hit_point;
 

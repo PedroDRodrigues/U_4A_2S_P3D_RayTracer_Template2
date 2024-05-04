@@ -12,6 +12,8 @@ using namespace std;
 #include "ray.h"
 #include "boundingBox.h"
 
+#define USE_MAILBOX false
+
 //Type of acceleration structure
 typedef enum { NONE, GRID_ACC, BVH_ACC }  accelerator;
 
@@ -75,7 +77,7 @@ public:
 
 protected:
 	Material* m_Material;
-	
+	int mailboxID = -1;
 };
 
 class Plane : public Object
@@ -90,7 +92,6 @@ public:
 
 		 bool intercepts( Ray& r, float& dist );
          Vector getNormal(Vector point);
-		 //AABB GetBoundingBox(void); fui eu que criei
 		 int getClass() { return 0; }
 };
 
