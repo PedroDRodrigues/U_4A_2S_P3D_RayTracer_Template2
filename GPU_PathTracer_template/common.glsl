@@ -188,7 +188,7 @@ Material createDialectricMaterial(vec3 refractClr, float refIdx, float roughness
 {
     Material m;
     m.type = MT_DIALECTRIC;
-    m.albedo = vec3(0.0);
+    m.albedo = vec3(1.0);
     m.specColor = vec3(0.04);
     m.refIdx = refIdx;
     m.refractColor = refractClr;  
@@ -206,10 +206,9 @@ struct HitRecord
 };
 
 
-float schlick(float cosine, float refIdx)
+float schlick(float cosine, float r0)
 {
     //INSERT YOUR CODE HERE
-    float r0 = (1.0 - refIdx) / (1.0 + refIdx); // CONFIRMAR
     r0 = r0 * r0;
     return r0 + (1.0 - r0) * pow(1.0 - cosine, 5.0);
 }
@@ -222,7 +221,7 @@ bool scatter(Ray rIn, HitRecord rec, out vec3 atten, out Ray rScattered)
     {
         //INSERT CODE HERE,
         vec3 S = rec.pos + rec.normal + normalize(randomInUnitSphere(gSeed));
-        vec3 dir = S - rec.pos;
+        vec3 dir = normalize(S - rec.pos);
         rScattered = createRay(preciseHitPoint, normalize(dir), rIn.t);
         atten = rec.material.albedo * max(dot(rScattered.d, rec.normal), 0.0) / pi;
         return true;
@@ -273,6 +272,8 @@ bool scatter(Ray rIn, HitRecord rec, out vec3 atten, out Ray rScattered)
         //if no total reflection  reflectProb = schlick(cosine, rec.material.refIdx);  
         //else reflectProb = 1.0;
 
+        float r0 = (etaI - etaT) / (etaI + etaT);
+
         float k = 1.0 -niOverNt * niOverNt * (1.0 - cosine * cosine);
 
         if(k < 0.0) //total reflection
@@ -281,7 +282,7 @@ bool scatter(Ray rIn, HitRecord rec, out vec3 atten, out Ray rScattered)
         }
         else
         {
-            reflectProb = schlick(cosine, rec.material.refIdx);
+            reflectProb = schlick(cosine, r0);
         }
 
         if( hash1(gSeed) < reflectProb) { //Reflection
