@@ -51,8 +51,9 @@ bool P3F_scene = true; //choose between P3F scene or a built-in random scene
 
 bool ANTI_ALIASING = false;
 bool SOFT_SHADOW = false;
-bool DEPTH_OF_FIELD = false;
+bool DEPTH_OF_FIELD = true;
 bool FUZZY_REFLECTION = false;
+
 
 unsigned int FrameCount = 0;
 
@@ -538,8 +539,10 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 {
 	int numberObjects = scene->getNumObjects();
 	float closest_t = FLT_MAX; // Find the closest intersection point
+	float t = FLT_MAX;
 	Object* closest_object = NULL;
 	Vector hit;
+	bool is_hit = false;
 
 	Color color(0.0f, 0.0f, 0.0f);
 
@@ -547,7 +550,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 		case 0:
 			for (int i = 0; i < numberObjects; i++) {
 				Object* object = scene->getObject(i);
-				float t = FLT_MAX;
+
 				if (object->intercepts(ray, t) && t < closest_t) {
 					closest_t = t;
 					closest_object = object;
@@ -566,10 +569,9 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 			break;
 
 		case 2:
-			if (!bvh.Traverse(ray, &closest_object, hit)) {
-				closest_object = NULL;
-			}
-			break;
+			
+			is_hit = bvh_ptr->Traverse(ray, &closest_object, hit);
+			
 		default:
 			for (int i = 0; i < numberObjects; i++) {
 				float t = FLT_MAX;
@@ -579,17 +581,15 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 					closest_object = object;
 				}
 			}
+			if (closest_object != NULL) {
+				hit = ray.origin + ray.direction * closest_t;
+			}
 			
 			break;	
 	}
 
-	if (!closest_object) { //if there is no interception return background
-		//if (scene->GetSkyBoxFlg()) {
-			//return scene->GetSkyboxColor(ray);
-		//}
-		//else {
-			return scene->GetBackgroundColor();
-		//}
+	if (closest_object == NULL && !is_hit) {
+		return scene->GetSkyboxColor(ray);
 	}
 		
 	// Compute hit point and normal
@@ -608,27 +608,30 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 		if (SOFT_SHADOW) {
 			float shadow = 0.5f;
 
-			if (ANTI_ALIASING) {
-				position = Vector(light->position.x + shadow * ((offset_for_shadowx + rand_float()) / SAMPLES), light->position.y + shadow * ((offset_for_shadowy + rand_float()) / SAMPLES), light->position.z);
-				Vector L = (position - hit_point);
-				processLight(scene, L, light->color , color, closest_object->GetMaterial(), ray, precise_hit_point, normal);
+			if (!ANTI_ALIASING) {
 				
-			}
-			else {
+
 				float distance = shadow / 4;
-				float cur_x = light->position.x - shadow * 4;
-				float cur_y = light->position.y - shadow * 4;
+				float cur_x = light->position.x - distance * shadow * 4;
+				float cur_y = light->position.y - distance * shadow * 4;
+				Color avg_col = light->color / (4 * 4);
 
 				for (int i = 0; i < 4; i++) {
 					for (int j = 0; j < 4; j++) {
 						position = Vector(cur_x, cur_y, light->position.z);
 						Vector L = (position - hit_point);
-						processLight(scene, L, light->color, color, closest_object->GetMaterial(), ray, precise_hit_point, normal);
+						processLight(scene, L, avg_col, color, closest_object->GetMaterial(), ray, precise_hit_point, normal);
 						cur_x += distance;
 					}
 					cur_y += distance;
 					cur_x = light->position.x - distance * shadow * 4;
 				}
+				
+			}
+			else {
+				position = Vector(light->position.x + shadow * ((offset_for_shadowx + rand_float()) / SAMPLES), light->position.y + shadow * ((offset_for_shadowy + rand_float()) / SAMPLES), light->position.z);
+				Vector L = (position - hit_point);
+				processLight(scene, L, light->color, color, closest_object->GetMaterial(), ray, precise_hit_point, normal);
 			}
 		}
 		else {
@@ -730,6 +733,14 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 
 // Render function by primary ray casting from the eye towards the scene's objects
 
+Vector sample_unit_disk(void) {
+	Vector p;
+	do {
+		p = Vector(rand_float(), rand_float(), 0.0) * 2 - Vector(1.0, 1.0, 0.0);
+	} while (p * p >= 1.0);
+	return p;
+}
+
 void renderScene()
 {
 	int index_pos = 0;
@@ -778,7 +789,7 @@ void renderScene()
 				if (DEPTH_OF_FIELD) {
 					Vector cameralens;
 					float aperture = scene->GetCamera()->GetAperture();
-					cameralens = rnd_unit_disk() * aperture;
+					cameralens = sample_unit_disk() * aperture;
 
 					ray = &scene->GetCamera()->PrimaryRay(cameralens, pixel);
 
@@ -808,12 +819,11 @@ void renderScene()
 							ray = &scene->GetCamera()->PrimaryRay(pixel);
 						}
 
-						color += color + rayTracing(*ray, 1, 1.0);
+						color =  rayTracing(*ray, 1, 1.0).clamp();
 					}
 				}	
 				
-				float denominator_aux = static_cast<float>(SAMPLES * SAMPLES);
-				color = color / denominator_aux;
+				color = color / (4 * 4);
 			}
 
 			img_Data[counter++] = u8fromfloat(static_cast<float>(color.r()));

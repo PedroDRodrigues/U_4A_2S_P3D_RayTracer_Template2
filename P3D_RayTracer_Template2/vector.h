@@ -18,7 +18,12 @@ public:
 
 	float length();
 
+	float getIndex(int op) {
+		return (op == 0) ? x : (op == 1) ? y : z;
+	}
+
 	float getAxisValue(int axis);
+	int max_dimension();
 
 	Vector&	normalize();
 	Vector operator=(const Vector& v);
@@ -42,5 +47,6 @@ public:
 	{ return s >> v.x >> v.y >> v.z; }
   
 };
+
 
 #endif

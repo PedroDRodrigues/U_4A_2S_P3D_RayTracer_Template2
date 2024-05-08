@@ -133,7 +133,7 @@ bool Grid::Init_Traverse(Ray& ray, int& ix, int& iy, int& iz, double& dtx, doubl
 
 	printf("O ERRO COMEÇA NO t0 AQUI - DEPOIS O TY_MIN VAI COM INF E VAI ESTRAGRANDO TUDO\n");
 	printf("dy = %f\n", dy);
-
+	
 	float b = 1.0 / dy;
 	printf("b = %f\n", b);
 	if (b >= 0) {

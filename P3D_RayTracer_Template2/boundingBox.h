@@ -17,5 +17,7 @@ public:
 	bool intercepts(const Ray& r, float& t);
 	Vector centroid(void);
 	void extend(AABB box);
+	float surface_area();
+
 
 };
