@@ -70,7 +70,7 @@ bool hit_world(Ray r, float tmin, float tmax, out HitRecord rec)
 
     if(!NO_NEGATIVE_SPHERE) {
         if(hit_sphere(
-            createSphere(vec3(0.0, 1.0, 0.0), -0.95),
+            createSphere(vec3(0.0, 1.0, 0.0), -0.5),
             r,
             tmin,
             rec.t,

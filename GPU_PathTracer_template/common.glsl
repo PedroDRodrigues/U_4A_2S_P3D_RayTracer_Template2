@@ -85,10 +85,7 @@ vec3 randomInUnitSphere(inout float seed)
 
 vec3 randomUnitVector(inout float seed) //to be used in diffuse reflections with distribution cosine
 {
-    float z = hash1(seed) * 2.0f - 1.0f;
-    float a = hash1(seed) * 2.0f * pi;
-    float r = sqrt(1.0 - z * z);
-    return vec3(r * cos(a), r * sin(a), z);
+    return(normalize(randomInUnitSphere(seed)));
 }
 
 struct Camera
@@ -220,7 +217,7 @@ bool scatter(Ray rIn, HitRecord rec, out vec3 atten, out Ray rScattered)
     if(rec.material.type == MT_DIFFUSE)
     {
         //INSERT CODE HERE,
-        vec3 S = rec.pos + rec.normal + normalize(randomInUnitSphere(gSeed));
+        vec3 S = rec.pos + rec.normal + randomUnitVector(gSeed);
         vec3 dir = normalize(S - rec.pos);
         rScattered = createRay(preciseHitPoint, normalize(dir), rIn.t);
         atten = rec.material.albedo * max(dot(rScattered.d, rec.normal), 0.0) / pi;
@@ -491,7 +488,8 @@ bool hit_movingSphere(MovingSphere s, Ray r, float tmin, float tmax, out HitReco
     if(t < tmax && t > tmin) {
         rec.t = t;
         rec.pos = pointOnRay(r, rec.t);
-        rec.normal = s.radius >= 0.0 ? normalize(rec.pos - center) : normalize(center - rec.pos);
+        //rec.normal = s.radius >= 0.0 ? normalize(rec.pos - center) : normalize(center - rec.pos);         
+        rec.normal = s.radius >= 0.0 ? ((rec.pos - center) / s.radius) : normalize(center - rec.pos);
         return true;
     } else {
         return false;
