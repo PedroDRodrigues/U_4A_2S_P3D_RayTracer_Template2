@@ -163,7 +163,7 @@ Material createDiffuseMaterial(vec3 albedo)
     m.type = MT_DIFFUSE;
     m.albedo = albedo;
     m.specColor = vec3(0.0);
-    m.roughness = 1.0;  //ser usado na iluminação direta
+    m.roughness = 1.0;  //to use in indirect lighting
     m.refIdx = 1.0;
     m.refractColor = vec3(0.0);
     m.emissive = vec3(0.0);

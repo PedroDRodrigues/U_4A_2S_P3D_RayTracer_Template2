@@ -1,7 +1,7 @@
  ///////////////////////////////////////////////////////////////////////
 //
 // P3D Course
-// (c) 2021 by João Madeiras Pereira
+// (c) 2021 by JoÃ£o Madeiras Pereira
 //Ray Tracing P3F scenes and drawing points with Modern OpenGL
 //
 ///////////////////////////////////////////////////////////////////////
@@ -49,10 +49,10 @@ bool P3F_scene = true; //choose between P3F scene or a built-in random scene
 #define REFLECTION_SAMPLES 2
 #define SAMPLES 4
 
-bool ANTI_ALIASING = true;
-bool SOFT_SHADOW = true;
-bool DEPTH_OF_FIELD = true;
-bool FUZZY_REFLECTION = true;
+bool ANTI_ALIASING = false;
+bool SOFT_SHADOW = false;
+bool DEPTH_OF_FIELD = false;
+bool FUZZY_REFLECTION = false;
 
 
 unsigned int FrameCount = 0;
@@ -74,7 +74,6 @@ float r = 4.0f;
 long myTime, timebase = 0, frame = 0;
 char s[32];
 
-
 // Points defined by 2 attributes: positions which are stored in vertices array and colors which are stored in colors array
 float *colors;
 float *vertices;
@@ -94,9 +93,6 @@ GLint UniformId;
 
 Scene* scene = NULL;
 
-Grid grid;
-BVH bvh;
-
 Grid* grid_ptr;
 BVH* bvh_ptr;
 
@@ -107,8 +103,6 @@ int RES_X, RES_Y;
 int WindowHandle = 0;
 
 bool SCHLICK_APPROX = false;
-
-int USE_ACCEL_STRUCT = 0; // dont use 2 yet (BVH) 1 (GRID) 0 (NONE)
 
 int offset_for_shadowx, offset_for_shadowy;
 
@@ -212,8 +206,8 @@ void createBufferObjects()
 	glGenBuffers(2, VboId);
 	glBindBuffer(GL_ARRAY_BUFFER, VboId[0]);
 
-	/* Só se faz a alocação dos arrays glBufferData (NULL), e o envio dos pontos para a placa gráfica
-	é feito na drawPoints com GlBufferSubData em tempo de execução pois os arrays são GL_DYNAMIC_DRAW */
+	/* SÃ³ se faz a alocaÃ§Ã£o dos arrays glBufferData (NULL), e o envio dos pontos para a placa grÃ¡fica
+	Ã© feito na drawPoints com GlBufferSubData em tempo de execuÃ§Ã£o pois os arrays sÃ£o GL_DYNAMIC_DRAW */
 	glBufferData(GL_ARRAY_BUFFER, size_vertices, NULL, GL_DYNAMIC_DRAW);
 	glEnableVertexAttribArray(VERTEX_COORD_ATTRIB);
 	glVertexAttribPointer(VERTEX_COORD_ATTRIB, 2, GL_FLOAT, 0, 0, 0);
@@ -486,8 +480,8 @@ void processLight(Scene* scene, Vector& L, Color& lightColor, Color& color, Mate
 	if (L * normal > 0) {
 		Ray shadowRay = Ray(precise_hit_point, L);
 		double size;
-		switch (USE_ACCEL_STRUCT) {
-		case 0:
+		switch (Accel_Struct) {
+		case NONE:
 			for (int i = 0; i < scene->getNumObjects(); i++) {
 				object = scene->getObject(i);
 				if (object->intercepts(shadowRay, closest_t)) {
@@ -496,13 +490,13 @@ void processLight(Scene* scene, Vector& L, Color& lightColor, Color& color, Mate
 				}
 			}
 			break;
-		case 1:
-			if (grid.Traverse(shadowRay)) {
+		case GRID_ACC:
+			if (grid_ptr->Traverse(shadowRay)) {
 				in_shadow = true;
 			}
 			break;
-		case 2:
-			if (bvh.Traverse(shadowRay)) {
+		case BVH_ACC:
+			if (bvh_ptr->Traverse(shadowRay)) {
 				in_shadow = true;
 			}
 			break;
@@ -546,8 +540,8 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 
 	Color color(0.0f, 0.0f, 0.0f);
 
-	switch (USE_ACCEL_STRUCT) {
-		case 0:
+	switch (Accel_Struct) {
+		case NONE:
 			for (int i = 0; i < numberObjects; i++) {
 				Object* object = scene->getObject(i);
 
@@ -561,15 +555,14 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 				
 			}
 			break;
-		case 1:
-			if (!grid.Traverse(ray, &closest_object, hit)) {
+		case GRID_ACC:
+			if (!grid_ptr->Traverse(ray, &closest_object, hit)) {
 				closest_object = NULL;
 			
 			}
 			break;
 
-		case 2:
-			
+		case BVH_ACC:
 			is_hit = bvh_ptr->Traverse(ray, &closest_object, hit);
 			
 		default:
@@ -753,26 +746,6 @@ void renderScene()
 		scene->GetCamera()->SetEye(Vector(camX, camY, camZ));  //Camera motion
 	}
 
-	if (USE_ACCEL_STRUCT == 1) {
-		grid = Grid();
-
-		vector<Object*> objs;
-
-		for (int i = 0; i < scene->getNumObjects(); i++) {
-			objs.push_back(scene->getObject(i));
-		}
-		grid.Build(objs);
-	}
-	else if (USE_ACCEL_STRUCT == 2) {
-		bvh = BVH();
-		vector<Object*> objs;
-
-		for (int i = 0; i < scene->getNumObjects(); i++) {
-			objs.push_back(scene->getObject(i));
-		}
-		bvh.Build(objs);
-	}
-
 	for (int y = 0; y < RES_Y; y++)
 	{
 		for (int x = 0; x < RES_X; x++)
@@ -946,14 +919,39 @@ void init_scene(void)
 
 	Accel_Struct = scene->GetAccelStruct();   //Type of acceleration data structure
 
-	
+	if (Accel_Struct == GRID_ACC) {
+        grid_ptr = new Grid();
+        vector<Object*> objs;
+        int num_objects = scene->getNumObjects();
+
+        for (int o = 0; o < num_objects; o++) {
+            objs.push_back(scene->getObject(o));
+        }
+        grid_ptr->Build(objs);
+        printf("Grid built.\n\n");
+    }
+    else if (Accel_Struct == BVH_ACC) {
+        vector<Object*> objs;
+        int num_objects = scene->getNumObjects();
+        bvh_ptr = new BVH();
+
+        for (int o = 0; o < num_objects; o++) {
+            objs.push_back(scene->getObject(o));
+        }
+        bvh_ptr->Build(objs);
+        printf("BVH built.\n\n");
+    }
+    else
+        printf("No acceleration data structure.\n\n");
 
 	unsigned int spp = scene->GetSamplesPerPixel();
-	if (spp == 0)
+	if (spp == 0) {
 		printf("Whitted Ray-Tracing\n");
-	else
+	} else {
+		ANTI_ALIASING = true;
+		DEPTH_OF_FIELD = true;
 		printf("Distribution Ray-Tracing\n");
-
+	}
 }
 
 int main(int argc, char* argv[])
