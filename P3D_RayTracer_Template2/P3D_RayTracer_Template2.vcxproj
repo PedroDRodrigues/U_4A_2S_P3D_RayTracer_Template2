@@ -175,6 +175,7 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <None Include="..\..\..\..\..\Downloads\P3D_Template1-master\P3D_Template1-master\P3D_Template1\P3D_Scenes\dof.p3f" />
     <None Include="Dependencies.exe" />
     <None Include="P3D_Scenes\balls_box.p3f" />
     <None Include="P3D_Scenes\balls_high.p3f" />

@@ -315,3 +315,9 @@ bool BVH::Traverse(Ray& ray) {  //shadow ray with length
 
 	return(false);
 }
+
+
+// print start transversal e no fim befire the return printf traverse end
+// print numero de objectos
+// in the bvh build para fazer node call make leaf node se qualquer coisa menos o trhresold for negativo
+// right - left

@@ -101,23 +101,28 @@ public:
 		return Ray(ray_origin, ray_dir);
 	}
 
-	Ray PrimaryRay(const Vector& lens_sample, const Vector& pixel_sample) // DOF: Rays cast from  a thin lens sample to a pixel sample
+	Ray PrimaryRay(const Vector& lens_sample, const Vector& pixel_sample) // zzz
 	{
-        // Convert pixel sample to viewport coordinates
-		float u_vp = (pixel_sample.x / res_x) - 0.5;
-		float v_vp = (pixel_sample.y / res_y) - 0.5;
+		Vector ray_dir;
+		Vector eye_offset;
 
-	    float a = w * (u_vp / res_x - 0.5f) * focal_ratio;
-		float b = h * (v_vp / res_y - 0.5f) * focal_ratio;
-		float c = 0.0f;
+		// Compute the point p where the center ray hits the focal plane
+		//p.x = pixel_point.x * focal plane distance / view plane distance;
+		//p.y = pixel_point.y * focal plane distance / view plane distance;
 
-		Vector p(a, b, c);
+		// focal ratio = focal plane distance / view plane distance
+		Vector p(w * (pixel_sample.x / res_x - 0.5f) * focal_ratio, h * (pixel_sample.y / res_y - 0.5f) * focal_ratio, 0);
 
-		Vector ray_origin = eye + (u * lens_sample.x) + (v * lens_sample.y);
-		Vector ray_dir = (u * (p.x - lens_sample.x)) + (v * (p.y - lens_sample.y)) + (n * (- (focal_ratio) * plane_dist));
-		ray_dir.normalize();
+		// Use p and the sample point on the lens to compute the direction of hte primary ray so that this ray also goes through p
 
-		return Ray(ray_origin, ray_dir);
+		// dir = (p.x - lens_point.x) * u + (p.y - lens_point.y) * v - f * w
+		ray_dir = (u * (p.x - lens_sample.x) + v * (p.y - lens_sample.y) + n * (-focal_ratio * plane_dist)).normalize();
+		eye_offset = eye + (u * lens_sample.x) + (v * lens_sample.y);
+
+
+		
+
+		return Ray(eye_offset, ray_dir);
 	}
 };
 

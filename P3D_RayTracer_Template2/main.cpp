@@ -49,10 +49,10 @@ bool P3F_scene = true; //choose between P3F scene or a built-in random scene
 #define REFLECTION_SAMPLES 2
 #define SAMPLES 4
 
-bool ANTI_ALIASING = false;
-bool SOFT_SHADOW = false;
+bool ANTI_ALIASING = true;
+bool SOFT_SHADOW = true;
 bool DEPTH_OF_FIELD = true;
-bool FUZZY_REFLECTION = false;
+bool FUZZY_REFLECTION = true;
 
 
 unsigned int FrameCount = 0;
@@ -589,7 +589,8 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 	}
 
 	if (closest_object == NULL && !is_hit) {
-		return scene->GetSkyboxColor(ray);
+
+			return scene->GetBackgroundColor();
 	}
 		
 	// Compute hit point and normal
@@ -610,7 +611,6 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 
 			if (!ANTI_ALIASING) {
 				
-
 				float distance = shadow / 4;
 				float cur_x = light->position.x - distance * shadow * 4;
 				float cur_y = light->position.y - distance * shadow * 4;
@@ -629,7 +629,8 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 				
 			}
 			else {
-				position = Vector(light->position.x + shadow * ((offset_for_shadowx + rand_float()) / SAMPLES), light->position.y + shadow * ((offset_for_shadowy + rand_float()) / SAMPLES), light->position.z);
+			
+				position = Vector(light->position.x + shadow * ((1 + rand_float()) / SAMPLES), light->position.y + shadow * ((2 + rand_float()) / SAMPLES), light->position.z);
 				Vector L = (position - hit_point);
 				processLight(scene, L, light->color, color, closest_object->GetMaterial(), ray, precise_hit_point, normal);
 			}
@@ -778,7 +779,7 @@ void renderScene()
 		{
 			Color color;
 
-			Vector pixel;  //viewport coordinates
+			Vector pixel; 
 
 			if (!ANTI_ALIASING) {
 				pixel.x = x + 0.5f;
@@ -787,9 +788,13 @@ void renderScene()
 				Ray* ray = nullptr;
 
 				if (DEPTH_OF_FIELD) {
+					
 					Vector cameralens;
 					float aperture = scene->GetCamera()->GetAperture();
 					cameralens = sample_unit_disk() * aperture;
+					
+
+					// ray = &scene->GetCamera()->PrimaryRay(pixel);
 
 					ray = &scene->GetCamera()->PrimaryRay(cameralens, pixel);
 
@@ -810,16 +815,20 @@ void renderScene()
 						Ray* ray = nullptr;
 
 						if (DEPTH_OF_FIELD) {
+							
 							Vector cameralens;
 							float aperture = scene->GetCamera()->GetAperture();
-							cameralens = rnd_unit_disk() * aperture;
+							cameralens = sample_unit_disk() * aperture;
 							ray = &scene->GetCamera()->PrimaryRay(cameralens, pixel);
+							
+							
+						
 						}
 						else {
 							ray = &scene->GetCamera()->PrimaryRay(pixel);
 						}
 
-						color =  rayTracing(*ray, 1, 1.0).clamp();
+						color +=  rayTracing(*ray, 1, 1.0).clamp();
 					}
 				}	
 				
@@ -937,30 +946,7 @@ void init_scene(void)
 
 	Accel_Struct = scene->GetAccelStruct();   //Type of acceleration data structure
 
-	if (Accel_Struct == GRID_ACC) {
-		grid_ptr = new Grid();
-		vector<Object*> objs;
-		int num_objects = scene->getNumObjects();
-
-		for (int o = 0; o < num_objects; o++) {
-			objs.push_back(scene->getObject(o));
-		}
-		grid_ptr->Build(objs);
-		printf("Grid built.\n\n");
-	}
-	else if (Accel_Struct == BVH_ACC) {
-		vector<Object*> objs;
-		int num_objects = scene->getNumObjects();
-		bvh_ptr = new BVH();
-
-		for (int o = 0; o < num_objects; o++) {
-			objs.push_back(scene->getObject(o));
-		}
-		bvh_ptr->Build(objs);
-		printf("BVH built.\n\n");
-	}
-	else
-		printf("No acceleration data structure.\n\n");
+	
 
 	unsigned int spp = scene->GetSamplesPerPixel();
 	if (spp == 0)
