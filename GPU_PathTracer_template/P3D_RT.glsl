@@ -2,7 +2,7 @@
 #iChannel0 "self"
 
 bool RUSSIAN_ROULETTE = false;
-bool ORBIT_CAMERA = true;
+bool ORBIT_CAMERA = false;
 
 bool SHOWCASE_DOF = false;
 bool SHOWCASE_FUZZY_REFLECTIONS = false;
