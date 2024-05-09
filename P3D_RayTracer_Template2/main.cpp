@@ -54,6 +54,10 @@ bool SOFT_SHADOW = false;
 bool DEPTH_OF_FIELD = false;
 bool FUZZY_REFLECTION = false;
 
+bool MOTION_BLUR = false;
+
+float t0 = 0.0f;
+float t1 = 1.0f;
 
 unsigned int FrameCount = 0;
 
@@ -94,6 +98,8 @@ GLint UniformId;
 Scene* scene = NULL;
 
 Grid* grid_ptr;
+int Ray::nextId = 0; //initialize the static variable
+
 BVH* bvh_ptr;
 
 accelerator Accel_Struct = NONE;
@@ -746,6 +752,12 @@ void renderScene()
 		scene->GetCamera()->SetEye(Vector(camX, camY, camZ));  //Camera motion
 	}
 
+	if (MOTION_BLUR) {
+		scene->GetCamera()->SetShutterTime(t0, t1);
+	}
+
+	set_rand_seed(time(NULL));
+
 	for (int y = 0; y < RES_Y; y++)
 	{
 		for (int x = 0; x < RES_X; x++)
@@ -769,11 +781,11 @@ void renderScene()
 
 					// ray = &scene->GetCamera()->PrimaryRay(pixel);
 
-					ray = &scene->GetCamera()->PrimaryRay(cameralens, pixel);
+					ray = &scene->GetCamera()->PrimaryRay(cameralens, pixel, MOTION_BLUR);
 
 				}
 				else {
-					ray = &scene->GetCamera()->PrimaryRay(pixel);
+					ray = &scene->GetCamera()->PrimaryRay(pixel, MOTION_BLUR);
 				}
 				color = rayTracing(*ray, 1, 1.0).clamp();
 			}

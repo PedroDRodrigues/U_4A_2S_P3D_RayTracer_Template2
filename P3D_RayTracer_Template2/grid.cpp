@@ -279,11 +279,12 @@ bool Grid::Traverse(Ray& ray, Object **hitobject, Vector& hitpoint) {
 	float distance;
 	
 	while (true) {
-		objs = cells[ix + nx * iy + nx * ny * iz];
+		int index = ix + nx * iy + nx * ny * iz;
+		objs = cells[index];
 
 		closestDistance = FLT_MAX;
 		if (objs.size() != 0) 
-			for (auto obj : objs) //intersect Ray with all objects and find the closest hit point(if any)
+			for (auto& obj : objs) //intersect Ray with all objects and find the closest hit point(if any)
 				if (obj->intercepts(ray, distance) && distance < closestDistance) {
 					closestDistance = distance;
 					closestObj = obj;
@@ -351,13 +352,14 @@ bool Grid::Traverse(Ray& ray) {
 		printf("ix = %d, iy = %d, iz = %d\n", ix, iy, iz);
 		printf("nx = %d, ny = %d, nz = %d\n", nx, ny, nz);
 		printf("total: %d\n", ix + nx * iy + nx * ny * iz);
-		objs = cells[ix + nx * iy + nx * ny * iz];
+		int index = ix + nx * iy + nx * ny * iz;
+		objs = cells[index];
 		printf("Objects size = %d\n", objs.size());
 		if (objs.size() != 0) 
 
 			//intersect Ray with all objects of each cell
 			printf("VERIFICAR POIS E - auto& obj: objs;\n");
-			for (auto &obj : objs) {
+			for (auto& obj : objs) {
 				if (obj->intercepts(ray, distance) && distance < length) 
 					return true;
 			}
