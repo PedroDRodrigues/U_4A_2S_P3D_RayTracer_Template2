@@ -543,7 +543,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 	float closest_t = FLT_MAX; // Find the closest intersection point
 	float t = FLT_MAX;
 	Object* closest_object = NULL;
-	Vector hit;
+	Vector hit_point;
 
 	Color color(0.0f, 0.0f, 0.0f);
 
@@ -558,18 +558,18 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 				}
 			}
 			if (closest_object != NULL) {
-				hit = ray.origin + ray.direction * closest_t;
+				hit_point = ray.origin + ray.direction * closest_t;
 				
 			}
 			break;
 		case GRID_ACC:
-			if (!grid_ptr->Traverse(ray, &closest_object, hit)) {
+			if (!grid_ptr->Traverse(ray, &closest_object, hit_point)) {
 				closest_object = NULL;
 			
 			}
 			break;
 		case BVH_ACC:
-			if (!bvh_ptr->Traverse(ray, &closest_object, hit)) {
+			if (!bvh_ptr->Traverse(ray, &closest_object, hit_point)) {
 				closest_object = NULL;
 			}
 			
@@ -583,7 +583,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 				}
 			}
 			if (closest_object != NULL) {
-				hit = ray.origin + ray.direction * closest_t;
+				hit_point = ray.origin + ray.direction * closest_t;
 			}
 			break;	
 	}
@@ -594,7 +594,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 	}
 		
 	// Compute hit point and normal
-	Vector hit_point = ray.origin + ray.direction * closest_t;
+	//Vector hit_point = ray.origin + ray.direction * closest_t;
 	Vector normal = closest_object->getNormal(hit_point).normalize();
 	Vector precise_hit_point = hit_point + normal * EPSILON;
 	normal = closest_object->getNormal(precise_hit_point).normalize();
