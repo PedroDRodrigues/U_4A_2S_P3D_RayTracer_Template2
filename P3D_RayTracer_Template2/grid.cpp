@@ -50,8 +50,8 @@ void Grid::Build(vector<Object*>& objs) {
 	grid_bbox.max.x += EPSILON; grid_bbox.max.y += EPSILON; grid_bbox.max.z += EPSILON;
 
 	this->setAABB(grid_bbox);
-	
-		
+
+
 	// dimensions of the grid in the x, y, and z directions
 	double wx = bbox.max.x - bbox.min.x;
 	double wy = bbox.max.y - bbox.min.y;
@@ -68,11 +68,11 @@ void Grid::Build(vector<Object*>& objs) {
 
 	// set up a array to hold the objects stored in each cell
 	std::vector<Object*> obj_cell;
-	for (int i = 0; i < cellCount; i++) 
+	for (int i = 0; i < cellCount; i++)
 		cells.push_back(obj_cell);   //each cell has an array with zero elements
-		
+
 	// insert the objects into the cells
-	for (auto &obj : objects) {   //vector iterator
+	for (auto& obj : objects) {   //vector iterator
 
 		AABB obb = obj->GetBoundingBox();
 
@@ -91,16 +91,17 @@ void Grid::Build(vector<Object*>& objs) {
 					cells[ix + nx * iy + nx * ny * iz].push_back(obj);
 	}
 
+
 	printf("\nGRID: total cells = %d, total objects = %d, ResX = %d, ResY = %d, ResZ = %d\n\n", cellCount, this->getNumObjects(), nx, ny, nz);
 	//Erase the vector that stores object pointers, but don't delete the objects
 	objects.erase(objects.begin(), objects.end());
 }
 
 //Setup function for Grid traversal according to Amanatides&Woo algorithm
-bool Grid::Init_Traverse(Ray& ray, int& ix, int& iy, int& iz, double& dtx, double& dty, double& dtz, 
-		double& tx_next, double& ty_next, double& tz_next, int& ix_step, int& iy_step, int& iz_step, int& ix_stop, int& iy_stop, int& iz_stop) {
+bool Grid::Init_Traverse(Ray& ray, int& ix, int& iy, int& iz, double& dtx, double& dty, double& dtz,
+	double& tx_next, double& ty_next, double& tz_next, int& ix_step, int& iy_step, int& iz_step, int& ix_stop, int& iy_stop, int& iz_stop) {
 
-		
+
 	float t0, t1; //entering and leaving points
 
 	float ox = ray.origin.x;
@@ -117,7 +118,7 @@ bool Grid::Init_Traverse(Ray& ray, int& ix, int& iy, int& iz, double& dtx, doubl
 	float y1 = bbox.max.y;
 	float z1 = bbox.max.z;
 
-	
+
 	float tx_min, ty_min, tz_min;
 	float tx_max, ty_max, tz_max;
 
@@ -131,21 +132,15 @@ bool Grid::Init_Traverse(Ray& ray, int& ix, int& iy, int& iz, double& dtx, doubl
 		tx_max = (x0 - ox) * a;
 	}
 
-	printf("O ERRO COMEÇA NO t0 AQUI - DEPOIS O TY_MIN VAI COM INF E VAI ESTRAGRANDO TUDO\n");
-	printf("dy = %f\n", dy);
-	
 	float b = 1.0 / dy;
-	printf("b = %f\n", b);
 	if (b >= 0) {
 		ty_min = (y0 - oy) * b;
 		ty_max = (y1 - oy) * b;
-		printf("AAAAAAA ty_min = %f\n", ty_min);
 	}
 	else {
 		ty_min = (y1 - oy) * b;
 		ty_max = (y0 - oy) * b;
 	}
-
 
 	float c = 1.0 / dz;
 	if (c >= 0) {
@@ -157,19 +152,13 @@ bool Grid::Init_Traverse(Ray& ray, int& ix, int& iy, int& iz, double& dtx, doubl
 		tz_max = (z0 - oz) * c;
 	}
 
-	if (tx_min > ty_min) {
+	if (tx_min > ty_min)
 		t0 = tx_min;
-		printf("t0 APPROACH 0 - %f\n", t0);
-	}
-	else {
+	else
 		t0 = ty_min;
-		printf("t0 APPROACH 1 - %f\n", t0);
-	}
 
-	if (tz_min > t0) {
+	if (tz_min > t0)
 		t0 = tz_min;
-		printf("t0 APPROACH 2 - %f\n", t0);
-	}
 
 	if (tx_max < ty_max)
 		t1 = tx_max;
@@ -182,21 +171,16 @@ bool Grid::Init_Traverse(Ray& ray, int& ix, int& iy, int& iz, double& dtx, doubl
 	if (t0 > t1 || t1 < 0)   //crossover: ray does not intersect the Grid bounding box OR leaving point is behind the ray origin
 		return(false);
 
-	printf("t0 - STARTER - %f\n", t0);
+
 	// Calculate initial cell coordinates
-		
+
 	if (bbox.isInside(ray.origin)) {  			// does the ray start inside the grid?
 		ix = clamp((ox - x0) * nx / (x1 - x0), 0, nx - 1);
 		iy = clamp((oy - y0) * ny / (y1 - y0), 0, ny - 1);
 		iz = clamp((oz - z0) * nz / (z1 - z0), 0, nz - 1);
 	}
-	else { // O ERRO ESTA AQUI - SPORTING
-		printf("tO = %f\n", t0);
+	else {
 		Vector p = ray.origin + ray.direction * t0;  // initial hit point with grid's bounding box
-		printf("p.x is equal to %f\n", p.x);
-		printf("p.y is equal to %f\n", p.y);
-		printf("p.z is equal to %f\n", p.z);
-		printf("x0 = %f, y0 = %f, z0 = %f\n", x0, y0, z0);
 		ix = clamp((p.x - x0) * nx / (x1 - x0), 0, nx - 1);
 		iy = clamp((p.y - y0) * ny / (y1 - y0), 0, ny - 1);
 		iz = clamp((p.z - z0) * nz / (z1 - z0), 0, nz - 1);
@@ -237,8 +221,8 @@ bool Grid::Init_Traverse(Ray& ray, int& ix, int& iy, int& iz, double& dtx, doubl
 
 	if (dy == 0.0) {
 		ty_next = FLT_MAX;
-	//	iy_step = -1;
-	//	iy_stop = -1;
+		//	iy_step = -1;
+		//	iy_stop = -1;
 	}
 
 	if (dz > 0) {
@@ -261,11 +245,11 @@ bool Grid::Init_Traverse(Ray& ray, int& ix, int& iy, int& iz, double& dtx, doubl
 }
 
 //-----------------------------------------------------------------------GRID TRAVERSAL
-bool Grid::Traverse(Ray& ray, Object **hitobject, Vector& hitpoint) {
+bool Grid::Traverse(Ray& ray, Object** hitobject, Vector& hitpoint) {
 	int ix, iy, iz;
 	double 	tx_next, ty_next, tz_next;
-	double dtx, dty, dtz; 
-	 
+	double dtx, dty, dtz;
+
 	int 	ix_step, iy_step, iz_step;
 	int 	ix_stop, iy_stop, iz_stop;
 
@@ -277,24 +261,23 @@ bool Grid::Traverse(Ray& ray, Object **hitobject, Vector& hitpoint) {
 	float closestDistance;
 	Object* closestObj = NULL;
 	float distance;
-	
+
 	while (true) {
-		int index = ix + nx * iy + nx * ny * iz;
-		objs = cells[index];
+		objs = cells[ix + nx * iy + nx * ny * iz];
 
 		closestDistance = FLT_MAX;
-		if (objs.size() != 0) 
-			for (auto& obj : objs) //intersect Ray with all objects and find the closest hit point(if any)
+		if (objs.size() != 0)
+			for (auto obj : objs) //intersect Ray with all objects and find the closest hit point(if any)
 				if (obj->intercepts(ray, distance) && distance < closestDistance) {
 					closestDistance = distance;
 					closestObj = obj;
 				}
-		
+
 		if (tx_next < ty_next && tx_next < tz_next) {
 			if (closestDistance < tx_next) {
-					*hitobject = closestObj;
-					hitpoint = ray.origin +ray.direction * closestDistance;
-					return true;
+				*hitobject = closestObj;
+				hitpoint = ray.origin + ray.direction * closestDistance;
+				return true;
 			}
 			tx_next += dtx;
 			ix += ix_step;
@@ -302,14 +285,14 @@ bool Grid::Traverse(Ray& ray, Object **hitobject, Vector& hitpoint) {
 		}
 
 		else if (ty_next < tz_next) {
-				if (closestDistance < ty_next) {
-					*hitobject = closestObj;
-					hitpoint = ray.origin + ray.direction * closestDistance;
-					return true;
-				}
-				ty_next += dty;
-				iy += iy_step;
-				if (iy == iy_stop) return (false);
+			if (closestDistance < ty_next) {
+				*hitobject = closestObj;
+				hitpoint = ray.origin + ray.direction * closestDistance;
+				return true;
+			}
+			ty_next += dty;
+			iy += iy_step;
+			if (iy == iy_stop) return (false);
 		}
 
 		else {
@@ -322,12 +305,12 @@ bool Grid::Traverse(Ray& ray, Object **hitobject, Vector& hitpoint) {
 			iz += iz_step;
 			if (iz == iz_stop) return (false);
 		}
-		
+
 	}
 }
 
 //-----------------------------------------------------------------------GRID TRAVERSAL FOR SHADOW RAY
-bool Grid::Traverse(Ray& ray) {  
+bool Grid::Traverse(Ray& ray) {
 
 	double length = ray.direction.length(); //distance between light and intersection point
 	ray.direction.normalize();
@@ -348,19 +331,11 @@ bool Grid::Traverse(Ray& ray) {
 	float distance;
 
 	while (true) {
-		printf("C;\n");
-		printf("ix = %d, iy = %d, iz = %d\n", ix, iy, iz);
-		printf("nx = %d, ny = %d, nz = %d\n", nx, ny, nz);
-		printf("total: %d\n", ix + nx * iy + nx * ny * iz);
-		int index = ix + nx * iy + nx * ny * iz;
-		objs = cells[index];
-		printf("Objects size = %d\n", objs.size());
-		if (objs.size() != 0) 
-
+		objs = cells[ix + nx * iy + nx * ny * iz];
+		if (objs.size() != 0)
 			//intersect Ray with all objects of each cell
-			printf("VERIFICAR POIS E - auto& obj: objs;\n");
 			for (auto& obj : objs) {
-				if (obj->intercepts(ray, distance) && distance < length) 
+				if (obj->intercepts(ray, distance) && distance < length)
 					return true;
 			}
 
@@ -371,7 +346,7 @@ bool Grid::Traverse(Ray& ray) {
 		}
 		else {
 			if (ty_next < tz_next) {
-				
+
 				ty_next += dty;
 				iy += iy_step;
 				if (iy == iy_stop) return (false);

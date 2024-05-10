@@ -54,7 +54,7 @@ bool SOFT_SHADOW = false;
 bool DEPTH_OF_FIELD = false;
 bool FUZZY_REFLECTION = false;
 
-bool MOTION_BLUR = false;
+bool MOTION_BLUR = true;
 
 float t0 = 0.0f;
 float t1 = 1.0f;
@@ -499,11 +499,13 @@ void processLight(Scene* scene, Vector& L, Color& lightColor, Color& color, Mate
 		case GRID_ACC:
 			if (grid_ptr->Traverse(shadowRay)) {
 				in_shadow = true;
+				break;
 			}
 			break;
 		case BVH_ACC:
 			if (bvh_ptr->Traverse(shadowRay)) {
 				in_shadow = true;
+				break;
 			}
 			break;
 		default:
@@ -542,7 +544,6 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 	float t = FLT_MAX;
 	Object* closest_object = NULL;
 	Vector hit;
-	bool is_hit = false;
 
 	Color color(0.0f, 0.0f, 0.0f);
 
@@ -567,9 +568,10 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 			
 			}
 			break;
-
 		case BVH_ACC:
-			is_hit = bvh_ptr->Traverse(ray, &closest_object, hit);
+			if (!bvh_ptr->Traverse(ray, &closest_object, hit)) {
+				closest_object = NULL;
+			}
 			
 		default:
 			for (int i = 0; i < numberObjects; i++) {
@@ -583,11 +585,10 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 			if (closest_object != NULL) {
 				hit = ray.origin + ray.direction * closest_t;
 			}
-			
 			break;	
 	}
 
-	if (closest_object == NULL && !is_hit) {
+	if (closest_object == NULL ) {
 
 			return scene->GetBackgroundColor();
 	}
@@ -597,7 +598,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 	Vector normal = closest_object->getNormal(hit_point).normalize();
 	Vector precise_hit_point = hit_point + normal * EPSILON;
 	normal = closest_object->getNormal(precise_hit_point).normalize();
-	Vector V = ray.direction * (-1);//scene->GetCamera()->GetEye() - hit_point;
+	Vector V = ray.direction * (-1); //scene->GetCamera()->GetEye() - hit_point;
 	
 	// Compute lighting
 	for (int i = 0; i < scene->getNumLights(); ++i) {
@@ -628,8 +629,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 				
 			}
 			else {
-			
-				position = Vector(light->position.x + shadow * ((1 + rand_float()) / SAMPLES), light->position.y + shadow * ((2 + rand_float()) / SAMPLES), light->position.z);
+				position = Vector(light->position.x + shadow * ((offset_for_shadowx + rand_float()) / SAMPLES), light->position.y + shadow * ((offset_for_shadowy + rand_float()) / SAMPLES), light->position.z);
 				Vector L = (position - hit_point);
 				processLight(scene, L, light->color, color, closest_object->GetMaterial(), ray, precise_hit_point, normal);
 			}
@@ -640,7 +640,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 		}
 	}
 
-	if (depth >= MAX_DEPTH) { // VERIFY
+	if (depth >= MAX_DEPTH) { 
 		return color.clamp(); //changed position
 	}
 	
