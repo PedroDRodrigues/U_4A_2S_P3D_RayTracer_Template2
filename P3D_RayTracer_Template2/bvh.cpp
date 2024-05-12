@@ -16,7 +16,7 @@ void BVH::BVHNode::makeLeaf(unsigned int index_, unsigned int n_objs_) {
 void BVH::BVHNode::makeNode(unsigned int left_index_) {
 	this->leaf = false;
 	this->index = left_index_; 
-			//this->n_objs = n_objs_; 
+	//this->n_objs = n_objs_; 
 }
 
 
@@ -46,20 +46,15 @@ void BVH::Build(vector<Object *> &objs) {
 		}
 
 void BVH::build_recursive(int left_index, int right_index, BVHNode* node) {
-	// https://www.haroldserrano.com/blog/visualizing-the-boundary-volume-hierarchy-collision-algorithm
-
-	//right_index, left_index and split_index refer to the indices in the objects vector
-   // do not confuse with left_nodde_index and right_node_index which refer to indices in the nodes vector. 
+	// right_index, left_index and split_index refer to the indices in the objects vector
+    // do not confuse with left_nodde_index and right_node_index which refer to indices in the nodes vector. 
 	// node.index can have a index of objects vector or a index of nodes vector
 
 	if ((right_index - left_index) <= Threshold) {
 		// Initiate current node as a leaf with primitives from objects[left_index] to objects[right_index]
 		node->makeLeaf(left_index, (right_index - left_index));
-	}
-	else {
+	} else {
 		// Split intersectable objects into left and right by finding a split index
-
-		// Get largest axis /////////////////////
 		AABB node_bb = node->getAABB();
 
 		int axis;
@@ -68,29 +63,24 @@ void BVH::build_recursive(int left_index, int right_index, BVHNode* node) {
 
 		if (dist.x >= dist.y && dist.x >= dist.z) {
 			axis = 0; // X axis
-		}
-		else if (dist.y >= dist.x && dist.y >= dist.z) {
+		} else if (dist.y >= dist.x && dist.y >= dist.z) {
 			axis = 1; // Y axis
-		}
-		else {
+		} else {
 			axis = 2; // Z axis
 		}
-		////////////////////////////////////////
-
-		// Sort the objects //////////////
+		
 		Comparator cmp;
 		cmp.dimension = axis;
 
-		sort(objects.begin() + left_index, objects.begin() + right_index, cmp);
-		///////////////////////////////////////
+		sort(objects.begin() + left_index, objects.begin() + right_index, cmp); // Sort objects 
+		
+		float mid_coord = (node_bb.max.getIndex(axis) + node_bb.min.getIndex(axis)) * 0.5f;  
 
-		// Find the split index //////////////
-		float mid_coord = (node_bb.max.getIndex(axis) + node_bb.min.getIndex(axis)) * 0.5f;
-
+		// Find split index
 		int split_index;
 
-		// Check that left of mid_coord isnt empty (i.e object at left index has a centroid at the right of mid coord and object at right index has a centroid at left of mid coord).
-		// If thats the case use the average of centroids as the mid coordinates
+		// Verify if left of mid_coord is not empty
+		// If thats true use average of centroids as mid coordinates
 		if (objects[left_index]->getCentroid().getIndex(axis) > mid_coord || objects[right_index - 1]->getCentroid().getIndex(axis) <= mid_coord) {
 			mid_coord = 0.0f;
 			for (int i = left_index; i < right_index; i++) {
@@ -100,26 +90,25 @@ void BVH::build_recursive(int left_index, int right_index, BVHNode* node) {
 			mid_coord /= (right_index - left_index);
 		}
 
-		// Check that left of mid_coord isnt empty (i.e object at left index has a centroid at the right of mid coord and object at right index has a centroid at left of mid coord).
-		// If any of those conditions happen, one of our halfs is empty so just use left index + threshold
+		// Verify if left of mid_coord is not empty
+		// If any of those conditions is true, one of our halfs is empty so just use left index + threshold
 		if (objects[left_index]->getCentroid().getIndex(axis) > mid_coord || objects[right_index - 1]->getCentroid().getIndex(axis) <= mid_coord) {
 			split_index = left_index + Threshold;
 		}
 		else {
-			//split_index = binary_search_split_index(left_index, right_index, mid_coord, axis);
 			int start = left_index;
 			int end = right_index;
 			int mid_index;
-			while (start != end && start < end) { // "Binary search" culling to speed up the process of finding the split_index
+			while (start != end && start < end) { // "Binary search" for the split index
 				mid_index = start + (end - start) / 2;
 				float midCentroidCoord = objects[mid_index]->getCentroid().getIndex(axis);
 
-				// If the mid index coordinates are smaller than the mid coordinates, then search on the upper half
+				// If mid index coordinates are < than the mid coordinates, then search on the upper half
 				if (midCentroidCoord <= mid_coord) {
 					start = mid_index + 1;
 					continue;
 				}
-				// If the mid index coordinates are larger than the mid coordinates, then search on the lower half
+				// If mid index coordinates are > than the mid coordinates, then search on the lower half
 				else if (midCentroidCoord > mid_coord) {
 					end = mid_index;
 					continue;
@@ -128,8 +117,6 @@ void BVH::build_recursive(int left_index, int right_index, BVHNode* node) {
 				break;
 			}
 
-			//split_index = start; // -> somewhy doing just this causes an overflow on balls_high and balls_medium!? no clue..
-
 			for (split_index = start; split_index < end; split_index++) {
 				if (objects[split_index]->getCentroid().getIndex(axis) > mid_coord) {
 					break;
@@ -137,10 +124,8 @@ void BVH::build_recursive(int left_index, int right_index, BVHNode* node) {
 			}
 
 		}
-		//////////////////////////////////////
 
-		// Create the left and right bounding boxes //
-
+		// Create the left and right bounding boxes
 		Vector min_right, min_left = min_right = Vector(FLT_MAX, FLT_MAX, FLT_MAX);
 		Vector max_right, max_left = max_right = Vector(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
@@ -154,8 +139,7 @@ void BVH::build_recursive(int left_index, int right_index, BVHNode* node) {
 			right_bbox.extend(objects[j]->GetBoundingBox());
 		}
 
-		// Create the left and right nodes //
-
+		// Create left and right nodes 
 		BVHNode* left_node = new BVHNode();
 		BVHNode* right_node = new BVHNode();
 		left_node->setAABB(left_bbox);
@@ -164,13 +148,10 @@ void BVH::build_recursive(int left_index, int right_index, BVHNode* node) {
 		// Initiate current node as an interior node with left and right node as children
 		node->makeNode(nodes.size());
 
-		// Push back left and right node into nodes vector
+		// Push back left and right node into vector of nodes
 		nodes.push_back(left_node);
 		nodes.push_back(right_node);
-		////////////////////////////////
-
-
-		// Continue building recursively //
+		
 		build_recursive(left_index, split_index, left_node);
 		build_recursive(split_index, right_index, right_node);
 	}
@@ -269,8 +250,6 @@ AABB BVH::build_bounding_box(int left_index, int right_index) {
 }
 
 bool BVH::Traverse(Ray& ray, Object** hit_obj, Vector& hit_point) {
-	// https://github.com/madmann91/bvh/blob/master/include/bvh/single_ray_traverser.hpp
-
 	float tmp;
 	float tmin = FLT_MAX;  //contains the closest primitive intersection
 	bool hit = false;
@@ -294,10 +273,9 @@ bool BVH::Traverse(Ray& ray, Object** hit_obj, Vector& hit_point) {
 				if (obj->intercepts(ray, tmp) && tmp < tmin) {
 					tmin = tmp;
 					*hit_obj = obj;
-
 				}
 			}
-
+			
 			if (hit_obj != NULL) {
 				hit = true;
 			}
@@ -342,7 +320,6 @@ bool BVH::Traverse(Ray& ray, Object** hit_obj, Vector& hit_point) {
 			}
 		}
 
-		// If no new node or already explored leaf, get from the stack (or break if empty)
 		bool newNode = false;
 
 		while (!hit_stack.empty()) {
@@ -368,8 +345,7 @@ bool BVH::Traverse(Ray& ray, Object** hit_obj, Vector& hit_point) {
 	return false;
 }
 
-bool BVH::Traverse(Ray& ray) {  //shadow ray with length
-	// https://github.com/madmann91/bvh/blob/master/include/bvh/single_ray_traverser.hpp
+bool BVH::Traverse(Ray& ray) {  
 	float tmp;
 
 	double length = ray.direction.length(); //distance between light and intersection point
@@ -386,7 +362,7 @@ bool BVH::Traverse(Ray& ray) {  //shadow ray with length
 	BVHNode* r_child;
 
 	while (true) {
-		// If the root is a leaf, intersect it
+		// If the root is a leaf find the intersection
 		if (currentNode->isLeaf()) {
 			Object* obj;
 			for (int i = currentNode->getIndex(); i < currentNode->getIndex() + currentNode->getNObjs(); i++) {
@@ -406,12 +382,12 @@ bool BVH::Traverse(Ray& ray) {  //shadow ray with length
 			bool l_hit = l_child->getAABB().intercepts(ray, l_dist);
 			bool r_hit = r_child->getAABB().intercepts(ray, r_dist);
 
-			if (l_hit && r_hit) { // If both hit, pick the closest, store the other
-				if (l_dist < r_dist) { // Distance to left node is smaller, so move to that one and store the other
+			if (l_hit && r_hit) { // If both hit, pick the closest and store the other one
+				if (l_dist < r_dist) { // Distance to left node is smaller, so move to that one and store the other one
 					currentNode = l_child;
 					hit_stack.push(StackItem(r_child, r_dist));
 				}
-				else { // Distance to right node is smaller, so move to that one and store the other
+				else { // Distance to right node is smaller, so move to that one and store the other one
 					currentNode = r_child;
 					hit_stack.push(StackItem(l_child, l_dist));
 				}
@@ -427,9 +403,10 @@ bool BVH::Traverse(Ray& ray) {  //shadow ray with length
 			}
 		}
 
-		// If no new node and leaf node has no objects that hit, get from the stack (or break if empty)
+		// If hit stack is empty, break
 		if (hit_stack.empty())
 			break;
+		// If no new node or already explored leaf, get from the stack
 		StackItem popped = hit_stack.top();
 		hit_stack.pop();
 		currentNode = popped.ptr;
@@ -437,12 +414,3 @@ bool BVH::Traverse(Ray& ray) {  //shadow ray with length
 
 	return false;
 }
-
-
-// print start transversal e no fim befire the return 
-// 
-// 
-// printf traverse end
-// print numero de objectos
-// in the bvh build para fazer node call make leaf node se qualquer coisa menos o trhresold for negativo
-// right - left

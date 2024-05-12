@@ -92,10 +92,7 @@ bool AABB::intercepts(const Ray& ray, float& t)
 		tx_max = (x0 - ox) * a;
 	}
 	
-	if (dy == 0) dy = 0.000001;
-
 	float b = 1.0 / dy;
-
 	if (b >= 0) {
 		ty_min = (y0 - oy) * b;
 		ty_max = (y1 - oy) * b;

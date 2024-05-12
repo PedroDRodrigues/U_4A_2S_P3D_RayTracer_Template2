@@ -36,18 +36,6 @@ bool P3F_scene = true; //choose between P3F scene or a built-in random scene
 #define CAPTION "Whitted Ray-Tracer"
 #define VERTEX_COORD_ATTRIB 0
 #define COLOR_ATTRIB 1
-#define GRID_ON true
-#define DOF_ON false
-// 0/1/2: off/jitter/montecarlo
-#define AA_MODE 0
-// area 2: very heavy, alternate version
-// area 3: very light, alternate version
-// area is the correct definitive version
-// 0/1/2: off/random/area	(/area2/area3)
-// 0/1/2: off/no_pow/pow
-#define REFLECTION_MODE 0
-#define REFLECTION_SAMPLES 2
-#define SAMPLES 4
 
 bool ANTI_ALIASING = false;
 bool SOFT_SHADOW = false;
@@ -111,6 +99,8 @@ int WindowHandle = 0;
 bool SCHLICK_APPROX = false;
 
 int offset_for_shadowx, offset_for_shadowy;
+
+int globalSamplesPerPixel;
 
 /////////////////////////////////////////////////////////////////////// ERRORS
 
@@ -481,7 +471,7 @@ void setupGLUT(int argc, char* argv[])
 void processLight(Scene* scene, Vector& L, Color& lightColor, Color& color, Material* material, Ray& ray, Vector& precise_hit_point, Vector& normal) {
 	Object* object = NULL;
 	float closest_t = FLT_MAX;
-	bool in_shadow = false;
+	bool insideShadow = false;
 	
 	if (L * normal > 0) {
 		Ray shadowRay = Ray(precise_hit_point, L);
@@ -491,20 +481,20 @@ void processLight(Scene* scene, Vector& L, Color& lightColor, Color& color, Mate
 			for (int i = 0; i < scene->getNumObjects(); i++) {
 				object = scene->getObject(i);
 				if (object->intercepts(shadowRay, closest_t)) {
-					in_shadow = true;
+					insideShadow = true;
 					break;
 				}
 			}
 			break;
 		case GRID_ACC:
 			if (grid_ptr->Traverse(shadowRay)) {
-				in_shadow = true;
+				insideShadow = true;
 				break;
 			}
 			break;
 		case BVH_ACC:
 			if (bvh_ptr->Traverse(shadowRay)) {
-				in_shadow = true;
+				insideShadow = true;
 				break;
 			}
 			break;
@@ -512,7 +502,7 @@ void processLight(Scene* scene, Vector& L, Color& lightColor, Color& color, Mate
 		for (int i = 0; i < scene->getNumObjects(); i++) {
 			object = scene->getObject(i);
 			if (object->intercepts(shadowRay, closest_t)) {
-				in_shadow = true;
+				insideShadow = true;
 				break;
 			}
 		}
@@ -520,7 +510,7 @@ void processLight(Scene* scene, Vector& L, Color& lightColor, Color& color, Mate
 	}
 	}
 	
-	if (!in_shadow) {
+	if (!insideShadow) {
 		L = L.normalize();
 		Vector V = ((L + (ray.direction * -1)).normalize());
 		float VdotN = V * normal;
@@ -540,7 +530,7 @@ void processLight(Scene* scene, Vector& L, Color& lightColor, Color& color, Mate
 Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medium 1 where the ray is travelling
 {
 	int numberObjects = scene->getNumObjects();
-	float closest_t = FLT_MAX; // Find the closest intersection point
+	float closest_t = FLT_MAX; 
 	float t = FLT_MAX;
 	Object* closest_object = NULL;
 	Vector hit_point;
@@ -594,11 +584,10 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 	}
 		
 	// Compute hit point and normal
-	//Vector hit_point = ray.origin + ray.direction * closest_t;
 	Vector normal = closest_object->getNormal(hit_point).normalize();
 	Vector precise_hit_point = hit_point + normal * EPSILON;
 	normal = closest_object->getNormal(precise_hit_point).normalize();
-	Vector V = ray.direction * (-1); //scene->GetCamera()->GetEye() - hit_point;
+	Vector V = ray.direction * (-1); 
 	
 	// Compute lighting
 	for (int i = 0; i < scene->getNumLights(); ++i) {
@@ -629,7 +618,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 				
 			}
 			else {
-				position = Vector(light->position.x + shadow * ((offset_for_shadowx + rand_float()) / SAMPLES), light->position.y + shadow * ((offset_for_shadowy + rand_float()) / SAMPLES), light->position.z);
+				position = Vector(light->position.x + shadow * ((offset_for_shadowx + rand_float()) / globalSamplesPerPixel), light->position.y + shadow * ((offset_for_shadowy + rand_float()) / globalSamplesPerPixel), light->position.z);
 				Vector L = (position - hit_point);
 				processLight(scene, L, light->color, color, closest_object->GetMaterial(), ray, precise_hit_point, normal);
 			}
@@ -641,7 +630,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 	}
 
 	if (depth >= MAX_DEPTH) { 
-		return color.clamp(); //changed position
+		return color.clamp(); 
 	}
 	
 	Color reflection_color(0.0f, 0.0f, 0.0f);
@@ -673,8 +662,8 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 			reflection_direction.normalize();
 		}
 
-		Ray reflection_ray(precise_hit_point, reflection_direction); //de onde vem o epsilon
-		reflection_color = rayTracing(reflection_ray, depth + 1, ior_1); //here should be ior_1 or 1.0f dont know
+		Ray reflection_ray(precise_hit_point, reflection_direction); 
+		reflection_color = rayTracing(reflection_ray, depth + 1, ior_1); 
 	}
 
 	float KR;
@@ -696,7 +685,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 		float cos_theta_i = viewnormal.length();
 		float sin_theta_t = (n)*viewtangent.length();
 		float insqrt = 1 - pow(sin_theta_t, 2);
-		// TENHO DE DAR PRINT DE TODOS OS REFRACTION DIRECTIONS AND REFLECTIONS DIRERCTIONS
+
 		if (insqrt >= 0) {
 			float cos_theta_t = sqrt(insqrt);
 			Vector refraction_direction = viewtangent.normalize() * sin_theta_t + (normal * (cos_theta_t)).normalize();
@@ -733,7 +722,7 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 
 // Render function by primary ray casting from the eye towards the scene's objects
 
-Vector sample_unit_disk(void) {
+Vector sampleUnitDisk(void) {
 	Vector p;
 	do {
 		p = Vector(rand_float(), rand_float(), 0.0) * 2 - Vector(1.0, 1.0, 0.0);
@@ -776,26 +765,22 @@ void renderScene()
 					
 					Vector cameralens;
 					float aperture = scene->GetCamera()->GetAperture();
-					cameralens = sample_unit_disk() * aperture;
+					cameralens = sampleUnitDisk() * aperture;
 					
-
-					// ray = &scene->GetCamera()->PrimaryRay(pixel);
-
 					ray = &scene->GetCamera()->PrimaryRay(cameralens, pixel, MOTION_BLUR);
-
-				}
-				else {
+				} else {
 					ray = &scene->GetCamera()->PrimaryRay(pixel, MOTION_BLUR);
 				}
+
 				color = rayTracing(*ray, 1, 1.0).clamp();
 			}
-			else { // This is jittering !! identifica cada coisa ou depois ngm sabe do que aqui vai
-				for (int i = 0; i < SAMPLES; i++) {
-					for (int j = 0; j < SAMPLES; j++) {
+			else { // This is jittering 
+				for (int i = 0; i < globalSamplesPerPixel; i++) {
+					for (int j = 0; j < globalSamplesPerPixel; j++) {
 						offset_for_shadowx = i;
 						offset_for_shadowy = j;
-						pixel.x = x + (i + rand_float()) / SAMPLES;
-						pixel.y = y + (j + rand_float()) / SAMPLES;
+						pixel.x = x + (i + rand_float()) / globalSamplesPerPixel;
+						pixel.y = y + (j + rand_float()) / globalSamplesPerPixel;
 
 						Ray* ray = nullptr;
 
@@ -803,7 +788,7 @@ void renderScene()
 							
 							Vector cameralens;
 							float aperture = scene->GetCamera()->GetAperture();
-							cameralens = sample_unit_disk() * aperture;
+							cameralens = sampleUnitDisk() * aperture;
 							ray = &scene->GetCamera()->PrimaryRay(cameralens, pixel);
 							
 							
@@ -956,8 +941,8 @@ void init_scene(void)
     else
         printf("No acceleration data structure.\n\n");
 
-	unsigned int spp = scene->GetSamplesPerPixel();
-	if (spp == 0) {
+	globalSamplesPerPixel = scene->GetSamplesPerPixel();
+	if (globalSamplesPerPixel == 0) {
 		printf("Whitted Ray-Tracing\n");
 	} else {
 		ANTI_ALIASING = true;

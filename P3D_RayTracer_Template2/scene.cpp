@@ -26,14 +26,13 @@ Triangle::Triangle(Vector& P0, Vector& P1, Vector& P2)
 	float x0 = min(min(P0.x, P1.x), P2.x);
 	float y0 = min(min(P0.y, P1.y), P2.y);
 	float z0 = min(min(P0.z, P1.z), P2.z);
-
+	
 	float x1 = max(max(P0.x, P1.x), P2.x);
 	float y1 = max(max(P0.y, P1.y), P2.y);
 	float z1 = max(max(P0.z, P1.z), P2.z);
 
 	Min = Vector(x0, y0, z0);
 	Max = Vector(x1, y1, z1);
-
 
 	// enlarge the bounding box a bit just in case...
 	Min -= EPSILON;
@@ -62,39 +61,6 @@ bool Triangle::intercepts(Ray& r, float& t ) {
 
 	Vector e1 = points[1] - points[0];
 	Vector e2 = points[2] - points[0];
-	/*Vector e1e2 = e1 % e2;
-	float area = e1e2.length();
-
-	float a = e1e2 * r.direction;
-	if (fabs(a) < EPSILON) return false;
-
-	float b = e1e2 * points[0] * (-1);
-	float c = e1e2 * r.origin * (-1) + b;
-
-	t = c / a;
-	if (t < 0) return false;
-
-	Vector P = r.origin + r.direction * t;
-
-	Vector C;
-	Vector edge = points[1] - points[0];
-	Vector vp = P - points[0];
-	C = edge % vp;
-	if (normal * C < 0) return false;
-
-	edge = points[2] - points[1];
-	vp = P - points[1];
-	C = edge % vp;
-	if (normal * C < 0) return false;
-
-	edge = points[0] - points[2];
-	vp = P - points[2];
-	C = edge % vp;
-	if (normal * C < 0) return false;
-
-	return true;*/
-
-
 
 	Vector h = r.direction % e2;
 	float det = e1 * h;
@@ -152,25 +118,25 @@ Plane::Plane(Vector& P0, Vector& P1, Vector& P2)
 
 bool Plane::intercepts(Ray & r, float& t)
 {
-	// Calculate the denominator
+	//Calculate the denominator
 	float denominator = PN *  r.direction;
 
-	// Check if the denominator is close to zero
+	//Check if the denominator is close to zero
 	if (fabs(denominator) < EPSILON) {
-		return false; // Ray is parallel to the plane
+		return false; // Ray is parallel to plane
 	}
 
 	float numerator = PN * r.origin + D;
 
-	// Calculate parameter t
+	//Calculate t
 	float taux = -(numerator / denominator);
 
-	// Check if the intersection point is behind the ray's origin
+	//Check if the intersection point is behind the ray origin
 	if (taux <= 0) {
 		return false;
 	}
 
-	// Intersection point is valid, assign t and return true
+	//Intersection point is valid, assign t and return true
 	t = taux;
 	return true;
 }
@@ -257,6 +223,7 @@ bool aaBox::intercepts(Ray& ray, float& t)
 	float tIn, tOut;
 
 	float aux = 1.0f / ray.direction.x;
+
 	if (aux >= 0) {
 		tmin.x = (min.x - ray.origin.x) * aux;
 		tmax.x = (max.x - ray.origin.x) * aux;
@@ -301,7 +268,6 @@ bool aaBox::intercepts(Ray& ray, float& t)
 		faceIn = Vector(0, 0, tmin.z < 0 ? -1 : 1);
 	}
 	
-
 	if (tmax.x < tmax.y) {
 		tOut = tmax.x;
 		faceOut = Vector(tmax.x < 0 ? -1 : 1, 0, 0);
@@ -347,7 +313,7 @@ Scene::~Scene()
 	{
 		delete objects[i];
 	}
-	objects.clear(); // i change from teacher base code - objects.erase();
+	objects.clear(); 
 }
 
 int Scene::getNumObjects()
@@ -355,12 +321,10 @@ int Scene::getNumObjects()
 	return objects.size();
 }
 
-
 void Scene::addObject(Object* o)
 {
 	objects.push_back(o);
 }
-
 
 Object* Scene::getObject(unsigned int index)
 {
@@ -368,7 +332,6 @@ Object* Scene::getObject(unsigned int index)
 		return objects[index];
 	return NULL;
 }
-
 
 int Scene::getNumLights()
 {
