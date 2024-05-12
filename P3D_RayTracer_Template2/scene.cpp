@@ -148,25 +148,6 @@ Vector Plane::getNormal(Vector point)
 
 bool Sphere::intercepts(Ray& r, float& t )
 {
-	/* IMP 1 */
-	/*Vector L = center - r.origin;
-	float tca = L * r.direction;
-	float d2 = L * L - tca * tca;
-	float radius2 = radius * radius;
-
-	if (d2 > radius2) return false;
-	float thc = sqrt(radius2 - d2);
-
-	if (tca - thc > EPSILON) {
-		t = tca - thc;
-		return true;
-	}
-	else if (tca + thc > EPSILON) {
-		t = tca + thc;
-		return true;
-	}*/
-
-	/* IMP 2 */
 	Vector L = r.origin - center;
 	float a = r.direction * r.direction;
 	float b = r.direction * L * 2.0f;
@@ -188,10 +169,7 @@ bool Sphere::intercepts(Ray& r, float& t )
 	t = t0;
 
 	return true;
-
-	/* BOTH IMPLEMENTATIONS WORK IN THE SAME WAY - ONE IS GEOMETRIC IMP 1 AND OTHER IS ANALYTIC IMP 2*/
 }
-
 
 Vector Sphere::getNormal( Vector point )
 {

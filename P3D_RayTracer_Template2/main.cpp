@@ -721,7 +721,6 @@ Color rayTracing(Ray ray, int depth, float ior_1)  //index of refraction of medi
 }
 
 // Render function by primary ray casting from the eye towards the scene's objects
-
 Vector sampleUnitDisk(void) {
 	Vector p;
 	do {
@@ -790,11 +789,7 @@ void renderScene()
 							float aperture = scene->GetCamera()->GetAperture();
 							cameralens = sampleUnitDisk() * aperture;
 							ray = &scene->GetCamera()->PrimaryRay(cameralens, pixel);
-							
-							
-						
-						}
-						else {
+						} else {
 							ray = &scene->GetCamera()->PrimaryRay(pixel);
 						}
 
