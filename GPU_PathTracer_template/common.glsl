@@ -413,6 +413,7 @@ MovingSphere createMovingSphere(vec3 center0, vec3 center1, float radius, float 
     return s;
 }
 
+// Motion Blur effect
 vec3 center(MovingSphere mvsphere, float time)
 {
     return mvsphere.center0 + (mvsphere.center1 - mvsphere.center0) * ((time - mvsphere.time0) / (mvsphere.time1 - mvsphere.time0));

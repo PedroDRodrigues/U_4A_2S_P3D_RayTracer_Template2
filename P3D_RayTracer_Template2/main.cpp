@@ -42,7 +42,7 @@ bool SOFT_SHADOW = false;
 bool DEPTH_OF_FIELD = false;
 bool FUZZY_REFLECTION = false;
 
-bool MOTION_BLUR = true;
+bool MOTION_BLUR = false;
 
 float t0 = 0.0f;
 float t1 = 1.0f;
