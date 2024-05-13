@@ -188,10 +188,10 @@ vec3 directlighting(pointLight pl, Ray r, HitRecord rec) {
     float diffuse, specular;
 
    //INSERT YOUR CODE HERE
-    vec3 lightDir = (pl.pos - rec.pos);
-    float dotRec = dot(rec.normal, lightDir);
+    vec3 lightDir = normalize(pl.pos - rec.pos);
+    float dotRec = max(dot(rec.normal, lightDir), 0.0);
     if (dotRec > 0.0) {
-        Ray shadowFeeler = createRay(rec.pos + epsilon * rec.normal, normalize(lightDir));
+        Ray shadowFeeler = createRay(rec.pos + epsilon * rec.normal, lightDir);
         float size = length(lightDir);
         
         if (hit_world(shadowFeeler, 0.0, size, dummy)) {

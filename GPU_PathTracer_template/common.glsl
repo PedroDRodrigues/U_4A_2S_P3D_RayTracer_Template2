@@ -129,7 +129,10 @@ Camera createCamera(
 
 Ray getRay(Camera cam, vec2 pixel_sample)  //rnd pixel_sample viewport coordinates
 {
-    vec2 ls = cam.lensRadius * randomInUnitDisk(gSeed);  //ls - lens sample for DOF
+    // Calculate lens sample for Depth of Field (DOF)
+    vec2 ls = cam.lensRadius * randomInUnitDisk(gSeed);  
+
+    // Randomly select a time within the camera's time range
     float time = cam.time0 + hash1(gSeed) * (cam.time1 - cam.time0);
     
     //Calculate eye_offset and ray direction
@@ -306,6 +309,11 @@ bool scatter(Ray rIn, HitRecord rec, out vec3 atten, out Ray rScattered)
             normalize(refracted);
 
             preciseHitPoint = rec.pos - outwardNormal * epsilon;
+
+            // Calculate absorption and atten with Beer's law
+            vec3 absorbance = exp(rec.material.refractColor * -rec.t);
+
+            atten *= absorbance;
 
             rScattered = createRay(preciseHitPoint, refracted, rIn.t);
         }
